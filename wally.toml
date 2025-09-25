@@ -1,0 +1,9 @@
+[package]
+name = "yourname/learn-roact"                           # no spaces or uppercase letters
+version = "0.1.0"
+registry = "https://github.com/UpliftGames/wally-index" # the public index
+realm = "shared"                                        # or "server" / "client"
+
+[dependencies]
+React = "jsdotlua/react@17.1.0"
+ReactRoblox = "jsdotlua/react-roblox@17.1.0"
