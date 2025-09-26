@@ -18,18 +18,6 @@ local GridService = require(script.Parent.GridService)
 
 local rng = Random.new()
 
-local function getItemConfigs(): { ModuleScript }
-	local folder = game.ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs"):WaitForChild("ItemsConfig")
-	local itemConfigs = {}
-	for _, child in ipairs(folder:GetChildren()) do
-		if child:IsA("ModuleScript") then
-			table.insert(itemConfigs, require(child))
-		end
-	end
-	warn("itemConfigs", itemConfigs)
-	return itemConfigs
-end
-
 local function safeSetAttributes(model: Model, cfg: {})
 	for k, v in pairs(cfg) do
 		local t = typeof(v)
@@ -57,11 +45,30 @@ end
 
 local function createPrompt(parentPart: BasePart): ProximityPrompt
 	local pp = Instance.new("ProximityPrompt")
-	pp.MaxActivationDistance = 10
+	pp.MaxActivationDistance = 6
+	pp.KeyboardKeyCode = Enum.KeyCode.F
+	pp.GamepadKeyCode = Enum.KeyCode.ButtonL3
 	pp.RequiresLineOfSight = false
 	pp.HoldDuration = 0
 	pp.Parent = parentPart
 	return pp
+end
+
+local folder = game.ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs"):WaitForChild("ItemsConfig")
+local itemConfigs: { ItemConfig } = {}
+local itemConfigById: { [string]: ItemConfig } = {}
+
+for _, child in ipairs(folder:GetChildren()) do
+	if child:IsA("ModuleScript") then
+		local config: ItemConfig = require(child)
+		table.insert(itemConfigs, config)
+		itemConfigById[config.ItemId] = config
+	end
+end
+
+if #itemConfigs == 0 then
+	warn("No item configs found under Shared/Configs/ItemsConfig")
+	return
 end
 
 local function spawnOne(cfg: ItemConfig, position: Vector3, container: Instance)
@@ -79,7 +86,7 @@ local function spawnOne(cfg: ItemConfig, position: Vector3, container: Instance)
 	end
 
 	local model = template:Clone()
-	model.Name = (cfg.DisplayName or itemId) .. "_Spawned"
+	model.Name = (cfg.DisplayName or itemId) .. ""
 	model.Parent = container
 
 	safeSetAttributes(model, cfg)
@@ -93,7 +100,7 @@ local function spawnOne(cfg: ItemConfig, position: Vector3, container: Instance)
 	primary.Anchored = true
 
 	-- Place it
-	model:PivotTo(CFrame.new(position))
+	model:PivotTo(CFrame.new(position) * CFrame.Angles(0, math.random() * 2 * math.pi, 0))
 
 	-- Prompt
 	local pp = createPrompt(primary)
@@ -122,12 +129,6 @@ function ItemSpawnService.initialize()
 			warn(("GridService initialized in %4.4f"):format(tick() - start))
 		else
 			warn("GridService.isInitialized")
-		end
-
-		local itemConfigs: { ItemConfig } = getItemConfigs()
-		if #itemConfigs == 0 then
-			warn("No item configs found under Shared/Configs/ItemsConfig")
-			return
 		end
 
 		for i = 1, 100 do
@@ -180,9 +181,11 @@ function ItemSpawnService.initialize()
 		end
 		-- Cleanup: return the position to the grid and remove the model
 		GridService.InsertPosition(meta.position)
-		ItemSpawnService.Collections[model] = nil
+		-- ItemSpawnService.Collections[model] = nil
 		model:Destroy()
 		processing[prompt] = nil
+		-- spawnOne(itemConfigById[meta.itemId], GridService.RemoveRandom(), itemsFolder)
+		spawnOne(itemConfigs[rng:NextInteger(1, #itemConfigs)], GridService.RemoveRandom(), itemsFolder)
 	end)
 end
 

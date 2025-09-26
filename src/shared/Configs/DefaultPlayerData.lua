@@ -36,6 +36,7 @@ local DefaultPlayerData = {}
 function DefaultPlayerData.Get()
 	local DEFAULT_RESOURCES = {
 		Money = 50,
+		Rate = 0,
 	}
 	local DEFAULT_SETTINGS = {
 		MusicMuted = false,

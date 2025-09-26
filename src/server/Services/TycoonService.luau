@@ -1,3 +1,4 @@
+local ContentProvider = game:GetService("ContentProvider")
 local PlayerData = require(game.ServerScriptService.Server.Classes.PlayerData)
 local ReactRoblox = require(game.ReplicatedStorage.Packages.ReactRoblox)
 local React = require(game.ReplicatedStorage.Packages.React)
@@ -88,11 +89,12 @@ local function HeldItem(props: { Player: Player, Item: Item })
 
 	return e("Folder", { Name = props.Item.ItemId, ref = ref })
 end
+
 --[[
 ======================================================================================================================================================================================================
 ]]
 
-local function TycoonItem(props: { ItemUID: string, Player: Player, SlotNum: Slot })
+local function TycoonItem(props: { ItemUID: string | "none", Player: Player, SlotNum: Slot, Item: Item? })
 	local ref = useRef()
 	local cloneRef = useRef()
 	local slot: Part, setSlot = useState(nil)
@@ -105,44 +107,77 @@ local function TycoonItem(props: { ItemUID: string, Player: Player, SlotNum: Slo
 		local slotPart: Part = slotsModel:FindFirstChild(props.SlotNum)
 		setSlot(slotPart)
 
-		local PP = Instance.new("ProximityPrompt", slotPart)
-		PP.RequiresLineOfSight = false
+		local PlacePP = Instance.new("ProximityPrompt", slotPart)
+		PlacePP.HoldDuration = 0
+		PlacePP.Exclusivity = Enum.ProximityPromptExclusivity.AlwaysShow
+		PlacePP.ActionText = "Place Item"
+		PlacePP.MaxActivationDistance = 6
+		PlacePP.KeyboardKeyCode = Enum.KeyCode.F
+		PlacePP.RequiresLineOfSight = false
+		PlacePP.UIOffset = Vector2.new(0, 0)
+
+		local RemovePP
+		if props.ItemUID ~= "none" then
+			RemovePP = Instance.new("ProximityPrompt", slotPart)
+			RemovePP.HoldDuration = 0
+			RemovePP.Exclusivity = Enum.ProximityPromptExclusivity.AlwaysShow
+			RemovePP.ActionText = "Remove Item"
+			RemovePP.MaxActivationDistance = 6
+			RemovePP.KeyboardKeyCode = Enum.KeyCode.R
+			RemovePP.RequiresLineOfSight = false
+			RemovePP.UIOffset = Vector2.new(0, 80)
+		end
 
 		local PlaceItem: RemoteEvent = game.ReplicatedStorage.Shared.Events.PlaceItem
 		connectionsRef.current = {
-			ppconnection = PP.Triggered:Connect(function(playerwhotriggerred)
+			PlacePPConnection = PlacePP.Triggered:Connect(function(playerwhotriggerred)
+				if playerwhotriggerred ~= props.Player then
+					return
+				end
 				PlaceItem:FireClient(playerwhotriggerred, props.SlotNum)
 			end),
+			RemovePPConnection = (function()
+				return RemovePP
+					and RemovePP.Triggered:Connect(function(playerwhotriggerred)
+						if playerwhotriggerred ~= props.Player then
+							return
+						end
+						pd.ItemSlots[props.SlotNum] = "none"
+						pd.ItemSlots:FireChangedEvent()
+					end)
+			end)(),
 			placeitemconnection = PlaceItem.OnServerEvent:Connect(function(playerwhofired, slotNum, uid)
+				-- only owner
 				if playerwhofired ~= props.Player then
 					return
 				end
+				-- only on slot which was fired from
 				if slotNum ~= props.SlotNum then
 					return
 				else
 				end
+				-- only request with uid
 				if not uid then
 					return
 				end
+				-- only item that's valid
 				local itemFromUID = pd:GetItemFromUID(uid)
 				if not itemFromUID then
 					return
 				end
+				-- only one item amongst all tycoon's slot
 				for sn, id in pd.ItemSlots do
 					if id == uid then
 						pd.ItemSlots[sn] = "none"
 					end
 					if sn == slotNum then
 						pd.ItemSlots[sn] = uid
-						warn("Placing", slotNum, uid)
 					end
 				end
 
 				pd.ItemSlots:FireChangedEvent()
 			end),
 		}
-
-		--
 
 		if props.ItemUID ~= "none" then
 			local item = pd:GetItemFromUID(props.ItemUID)
@@ -152,19 +187,22 @@ local function TycoonItem(props: { ItemUID: string, Player: Player, SlotNum: Slo
 
 			local clone: Model = itemModel:Clone()
 
-			clone.Name = "Item" .. props.ItemUID
+			clone.Name = props.Item.DisplayName
 			clone.PrimaryPart.Anchored = true
 			-- .Color = Color3.new(math.random(), math.random(), math.random())
 			cloneRef.current = clone
 			clone.Parent = workspace
-			clone:PivotTo(slotPart:GetPivot() + Vector3.new(0, 5, 0))
+			clone:PivotTo(slotPart:GetPivot() + Vector3.new(0, slotPart.Size.Y / 2, 0))
 		end
 		--
 		return function()
 			for i, cref in connectionsRef.current or {} do
 				cref:Disconnect()
 			end
-			PP:Destroy()
+			PlacePP:Destroy()
+			if RemovePP then
+				RemovePP:Destroy()
+			end
 			connectionsRef.current = nil
 			if cloneRef.current then
 				cloneRef.current:Destroy()
@@ -175,7 +213,7 @@ local function TycoonItem(props: { ItemUID: string, Player: Player, SlotNum: Slo
 
 	return e("Model", {
 		ref = ref,
-		Name = "Item" .. props.ItemUID,
+		Name = "Item" .. props.ItemUID or "",
 	})
 end
 --[[
@@ -191,11 +229,11 @@ local function Tycoon(props: TycoonProps)
 	local items: { Item }, setItems = useState(props.Items)
 
 	useEffect(function()
-		warn("Tycoon for", props.Player.Name, "created")
 		while not Item.Created or not Item.Deleted do
 			warn("not Item.Created or not Item.Deleted ", Item)
 			task.wait()
 		end
+
 		local connections = {
 			ISChanged = ItemSlots.Changed:Connect(function(IS: ItemSlots, player)
 				if player ~= props.Player then
@@ -229,29 +267,37 @@ local function Tycoon(props: TycoonProps)
 	end, { itemSlots })
 
 	local placed: { [Slot]: string } = {}
-	local placedItems: { Item } = {}
+	local placedItems: { [string]: Item } = {}
 
+	-- RENDERING EMPTY SLOTS
 	for slotNum: Slot, ItemUID: string in itemSlots do
-		-- warn("creating item slotNum", slotNum, ItemUID)
-		placed[ItemUID] = true
+		placed[ItemUID] = slotNum
+		if ItemUID ~= "none" then
+			continue
+		end
 		children[slotNum] = e(TycoonItem, {
 			key = slotNum,
 			SlotNum = slotNum,
-			ItemUID = ItemUID,
+			Item = nil,
+			ItemUID = "none",
 			Player = props.Player,
 		})
 	end
 
+	-- RENDERING ITEMS
 	for i, item: Item in items or {} do
 		if placed[item.UID] then
-			table.insert(placedItems, item)
+			placedItems[item.UID] = item
+			local slotNum = placed[item.UID]
+			children[slotNum] = e(TycoonItem, {
+				key = slotNum,
+				SlotNum = slotNum,
+				Item = item,
+				ItemUID = item.UID,
+				Player = props.Player,
+			})
 			continue
 		end
-		children["held" .. item.UID] = e(HeldItem, {
-			key = item.UID,
-			Player = props.Player,
-			Item = item,
-		})
 	end
 	local rate = 0
 	for i, item in placedItems do
@@ -263,19 +309,32 @@ local function Tycoon(props: TycoonProps)
 
 	useEffect(function()
 		rateRef.current = rate
+		PlayerData.Collections[props.Player].Resources.Rate = rate
 	end, { rate })
+
+	local piref = useRef()
+	useEffect(function()
+		piref.current = placedItems
+	end, { placedItems })
 
 	useEffect(function()
 		local running = true
 		task.spawn(function()
 			while running do
 				task.wait(1)
-				if rateRef.current > 0 then
+				if rateRef.current >= 0 then
 					setMoney(function(prev)
 						local sum = prev + rateRef.current
-
+						for itemUID, item: Item in piref.current or {} do
+							if itemUID == "none" then
+								continue
+							end
+						end
+						game.ReplicatedStorage.Shared.Events
+							:WaitForChild("ResourcesUpdated")
+							:FireClient(props.Player, PlayerData.Collections[props.Player].Resources)
 						local textlabel: TextLabel = props.Plot.Part.BillboardGui.TextLabel
-						textlabel.Text = "Money: " .. sum
+						textlabel.Text = "Money: " .. sum .. "\nRate: " .. rateRef.current or 0
 						return sum
 					end)
 				end
@@ -288,6 +347,23 @@ local function Tycoon(props: TycoonProps)
 	-- warn("props.Items, items", props.Items, items)
 	return e("Folder", { Name = "Player" .. props.Player.Name }, children)
 end
+
+--[[TODO: ======================================================================================================================================================================================================
+
+ITEM EFFECTS: "GROWTH" or "DISCARD" or "ENTRY"
+
+	GROWTH
+		taken effect on every pulse (money loop)
+
+	DISCARD
+		taken effect when is discarded
+
+	ENTRY
+		taken effect when is placed for the first time
+
+
+fn(tycoon) -> effect
+======================================================================================================================================================================================================]]
 --[[
 ======================================================================================================================================================================================================
 ]]
@@ -299,6 +375,7 @@ end
 
 local function getItems(player: Player): { Item }?
 	while not PlayerData.Collections[player] do
+		warn("waiting for PlayerData.Collections[player]", player)
 		task.wait()
 	end
 	local items = PlayerData.Collections[player].Items
@@ -307,6 +384,7 @@ end
 
 local function getItemSlots(player: Player): ItemSlots?
 	while not PlayerData.Collections[player] do
+		warn("waiting for PlayerData.Collections[player]", player)
 		task.wait(0.1)
 	end
 	local itemSlots = PlayerData.Collections[player].ItemSlots
@@ -320,44 +398,70 @@ end
 
 -- MANAGES EVERY PLAYER'S TYCOON
 local function TycoonApp(props)
-	local tycoons: { TycoonProps }, setTycoons = useState({} :: { TycoonProps })
+	local tycoons: { [Player]: TycoonProps }, setTycoons = useState({} :: { [Player]: TycoonProps })
 
-	game.Players.PlayerAdded:Connect(function(player)
-		setTycoons(function(prev: { TycoonProps })
-			local clone = table.clone(prev)
-			local Plot = getPlot()
-			PlayerPlot[player] = Plot
+	-- Once Mounted
+	useEffect(function()
+		local playerSet: { [Player]: boolean } = {}
 
-			task.spawn(function()
-				local char = player.Character or player.CharacterAdded:Wait()
-				char:PivotTo(Plot:GetPivot() + Vector3.new(0, 10, 0))
-			end)
-
-			table.insert(clone, {
-				Player = player,
-				Plot = Plot,
-				ItemSlots = getItemSlots(player),
-				Items = getItems(player),
-			})
-			return clone
-		end)
-	end)
-	game.Players.PlayerRemoving:Connect(function(player)
-		setTycoons(function(prev: { TycoonProps })
-			local clone = table.clone(prev)
-			for i, tycoon in clone do
-				if tycoon.Player == player then
-					addPlot(tycoon.Plot)
-					table.remove(clone, i)
-					return clone
-				end
+		local function createTycoon(player: Player)
+			if playerSet[player] then
+				return
 			end
-			return clone
-		end)
-	end)
+			playerSet[player] = true
+			setTycoons(function(prev: { [Player]: TycoonProps })
+				local newTycoons = table.clone(prev)
+				local Plot = getPlot()
+				PlayerPlot[player] = Plot
+				task.spawn(function()
+					local char = player.Character or player.CharacterAdded:Wait()
+					char:PivotTo(Plot:GetPivot() + Vector3.new(0, 10, 0))
+				end)
+
+				newTycoons[player] = {
+					Player = player,
+					Plot = Plot,
+					ItemSlots = getItemSlots(player),
+					Items = getItems(player),
+				}
+				return newTycoons
+			end)
+		end
+		local function cleanupTycoon(player: Player)
+			setTycoons(function(prev: { TycoonProps })
+				local newTycoons = table.clone(prev)
+				if newTycoons[player] then
+					newTycoons[player] = nil
+				end
+				return newTycoons
+			end)
+			playerSet[player] = false
+		end
+
+		local pAddedCon = game.Players.PlayerAdded:Connect(createTycoon)
+		local pRemovedCon = game.Players.PlayerRemoving:Connect(cleanupTycoon)
+
+		for i, Player: Player in game.Players:GetPlayers() do
+			if playerSet[Player] then
+				continue
+			end
+			createTycoon(Player)
+		end
+
+		return function()
+			if pAddedCon then
+				pAddedCon:Disconnect()
+			end
+			if pRemovedCon then
+				pRemovedCon:Disconnect()
+			end
+		end
+	end, {})
 
 	local children = {}
+	warn("tycoons", tycoons)
 	for i, tycoon: TycoonProps in tycoons do
+		warn("Player", tycoon.Player, "created tycoon")
 		children[tycoon.Player.Name .. "'s Tycoon"] = e(Tycoon, {
 			key = "tycoon" .. tycoon.Player.UserId,
 			Player = tycoon.Player,
@@ -366,9 +470,6 @@ local function TycoonApp(props)
 			Items = tycoon.Items,
 		})
 	end
-
-	-- useEffect(function()
-	-- end, { tycoons })
 
 	return e("Folder", {
 		Name = "TycoonApp",

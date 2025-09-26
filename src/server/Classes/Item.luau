@@ -61,10 +61,13 @@ function Item.new(ItemId: string, Player: Player): Item?
 	table.insert(PlayerData.Collections[Player].Items, self)
 
 	ItemCreated:Fire(PlayerData.Collections[Player].Items, Player)
+
 	local ItemUpdated: RemoteEvent = game.ReplicatedStorage.Shared.Events.ItemUpdated
-	self:FireCreatedEvent()
 	ItemUpdated:FireClient(Player, PlayerData.Collections[Player].Items)
+
+	self:FireCreatedEvent()
 
 	return self
 end
+
 return Item

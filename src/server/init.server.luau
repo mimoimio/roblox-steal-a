@@ -26,3 +26,7 @@ GridService.initialize()
 
 local ItemSpawnService = require(script.Services.ItemSpawnService)
 ItemSpawnService.initialize()
+
+local Clock = require(script.Services.Clock)
+-- Clock.initialize()
+Clock.start()
