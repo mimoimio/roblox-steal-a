@@ -9,8 +9,9 @@ function Mount()
 	local ScreenGui = Instance.new("ScreenGui", game.Players.LocalPlayer.PlayerGui)
 	ScreenGui.ResetOnSpawn = false
 	local root = ReactRoblox.createRoot(ScreenGui)
-
+	warn("rendering")
 	root:render(e(App))
+	warn("rendered")
 end
 
 Mount()

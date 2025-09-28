@@ -4,7 +4,7 @@ self.Positions = {}
 
 self.Random = Random.new(1)
 local perlinRandomX, perlinRandomZ = self.Random:NextNumber(), self.Random:NextNumber()
-self.width = 30
+self.width = 100
 self.gridSize = 10
 local zoom = 100
 local frequency = 0.9
@@ -34,6 +34,13 @@ function self.initialize()
 					local i = i
 					local gridVector = Vector3.new(i - self.width / 2, 1, j - self.width / 2) * self.gridSize
 
+					if i == 1 or j == 1 or i == self.width or j == self.width then
+						local terrainCFrame = CFrame.new(gridVector)
+						local terrainSize = Vector3.one * self.gridSize + Vector3.new(0, 100, 0)
+						workspace.Terrain:FillBlock(terrainCFrame, terrainSize, Enum.Material.Grass)
+						continue
+					end
+
 					local noise = math.noise(
 						gridVector.X / zoom * frequency + 0.1 * perlinRandomX,
 						nil,
@@ -60,7 +67,11 @@ function self.initialize()
 
 					if not result then
 						print("No result")
-					elseif result.Instance:IsDescendantOf(workspace.Plots) then
+					elseif
+						result.Instance:IsDescendantOf(workspace.Plots)
+						or result.Instance:IsDescendantOf(workspace.Paths)
+						or result.Instance:IsDescendantOf(workspace.Shops)
+					then
 						-- Comment out part positioning - using workspace.Terrain instead
 						-- part:PivotTo(
 						-- 	CFrame.new(
@@ -84,7 +95,7 @@ function self.initialize()
 					-- Generate terrain using FillBlock
 					local terrainCFrame = CFrame.new(noisedPosition - Vector3.new(0, self.gridSize + 4, 0))
 					local terrainSize = Vector3.new(self.gridSize, self.gridSize + amplitude, self.gridSize)
-					workspace.Terrain:FillBlock(terrainCFrame, terrainSize, Enum.Material.Asphalt)
+					workspace.Terrain:FillBlock(terrainCFrame, terrainSize, Enum.Material.Grass)
 
 					-- Comment out part positioning - using workspace.Terrain instead
 					--[[

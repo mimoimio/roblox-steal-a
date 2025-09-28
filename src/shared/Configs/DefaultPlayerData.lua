@@ -1,24 +1,9 @@
-type PlayerData = {
-	Resources: { [string]: number },
-	PlayerSettings: { MusicVolume: number },
-	Progress: { EXP: number, LVL: number },
-	Items: {
-		{
-			UID: string,
-			ItemId: string,
-			DisplayName: string,
-			Rate: number,
-		}
-	},
-	ItemSlots: { -- contains UID of items from PlayerData.Items
-		Slot1: string?,
-		Slot2: string?,
-		Slot3: string?,
-		Slot4: string?,
-		Slot5: string?,
-		Slot6: string?,
-	},
-}
+local sharedtypes = require(game.ReplicatedStorage.Shared.types)
+type PlayerData = sharedtypes.PlayerData
+type PlayerSettings = sharedtypes.PlayerSettings
+type Item = sharedtypes.Item
+type ItemSlots = sharedtypes.ItemSlots
+type TycoonProps = sharedtypes.TycoonProps
 
 local c = 0
 function count()
@@ -46,21 +31,27 @@ function DefaultPlayerData.Get()
 		EXP = 0,
 		LVL = 1,
 	}
-	local DEFAULT_ITEMS = {
-		{
-			UID = generateUID(),
-			ItemId = "stick",
-			DisplayName = "Stick",
-			Rate = 2,
-		},
+	local DEFAULT_ITEMS: { Item } = {
 		{
 			UID = generateUID(),
 			ItemId = "rock",
 			DisplayName = "Rock",
+			Rate = 2,
+			Effect = {
+				growth = function(self: Item, tycoon: TycoonProps)
+					self.Rate += 1
+					warn("RATE INCREASED", self.Rate)
+				end,
+			},
+		},
+		{
+			UID = generateUID(),
+			ItemId = "stick",
+			DisplayName = "Stick",
 			Rate = 3,
 		},
 	}
-	local DEFAULT_ITEMSLOTS = {
+	local DEFAULT_ITEMSLOTS: ItemSlots = {
 		Slot1 = "none",
 		Slot2 = "none",
 		Slot3 = "none",

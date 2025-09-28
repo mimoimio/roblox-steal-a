@@ -121,7 +121,7 @@ local function Slider(props: SliderProps)
 			Size = UDim2.new(0, 50, 0, 50),
 			Position = UDim2.new(0, 0, 0.5, 0),
 			Text = "🔊",
-			ZIndex = 10,
+			ZIndex = 3,
 			[React.Event.Activated] = toggleSlider,
 		}, {
 			rounded = e(rounded),
@@ -131,7 +131,7 @@ local function Slider(props: SliderProps)
 			Size = UDim2.new(0, 25, 0, TRACK_HEIGHT),
 			AnchorPoint = Vector2.new(0.5, 1),
 			Position = UDim2.new(0, 25, 0.5, 0),
-			ZIndex = 9,
+			ZIndex = 3,
 			Visible = open,
 			BackgroundColor3 = Color3.fromRGB(30, 30, 30),
 			BackgroundTransparency = 0.2,
@@ -144,7 +144,7 @@ local function Slider(props: SliderProps)
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				-- initial position from volume; live updates are handled by drag or effect
 				Position = UDim2.new(0.5, 0, 0, (1 - volume) * TRACK_HEIGHT),
-				ZIndex = 20,
+				ZIndex = 4,
 				BackgroundColor3 = Color3.fromRGB(200, 200, 200),
 				ref = handleRef,
 			}, {

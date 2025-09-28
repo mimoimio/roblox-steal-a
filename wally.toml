@@ -7,3 +7,4 @@ realm = "shared"                                        # or "server" / "client"
 [dependencies]
 React = "jsdotlua/react@17.1.0"
 ReactRoblox = "jsdotlua/react-roblox@17.1.0"
+Alyanum = "evilbocchi/alyanum@1.1.9"

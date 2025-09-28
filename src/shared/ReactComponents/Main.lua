@@ -27,10 +27,13 @@ type Item = {
 }
 
 local Inventory = require(script.Parent.Inventory)
+local Settings = require(script.Parent.Settings)
 local PlaceItem = require(script.Parent.PlaceItem)
+local SellItem = require(script.Parent.SellItem)
 local HUD = require(script.Parent.HUD)
 local Music = require(script.Parent.Music)
 local Mustard = require(script.Parent.Mustard)
+local CutsceneController = require(script.Parent.CutsceneController)
 
 type InventoryProps = { PlayerData: PlayerData, InventoryOpen: boolean }
 type Panel = "none" | "inventory" | "settings" | "shop" | "mustard" | "music" | "placeitem"
@@ -52,6 +55,8 @@ local function Main(props)
 		React.useState(fetchPlayerData() :: PlayerData?)
 	local isMountedRef = useRef()
 	local PlaceItemOpen = activePanel == "placeitem"
+	local SellItemOpen = activePanel == "sellitem"
+	local SettingsOpen = activePanel == "settings"
 	local InventoryOpen = activePanel == "inventory"
 	local MustardOpen = activePanel == "mustard"
 	local MusicOpen = activePanel == "music"
@@ -73,70 +78,149 @@ local function Main(props)
 
 		local GetItems: RemoteFunction = Events:WaitForChild("GetItems")
 		local ItemUpdated: RemoteEvent = Events:WaitForChild("ItemUpdated")
+		local ItemSlotsUpdate: RemoteEvent = Events:WaitForChild("ItemSlotsUpdate")
+		local PlaceItemEvent: RemoteEvent = Events:WaitForChild("PlaceItem")
+		local SellItemsEvent: RemoteEvent = Events:WaitForChild("SellItems")
 
-		--[[ KEYBINDS ================================]]
-		local keybindconnection = UserInputService.InputBegan:Connect(function(io, gp)
-			-- Respect gameProcessed
-			if io.KeyCode == Enum.KeyCode.Backquote then
-				warn("Backquote", gp)
-			end
-			if gp then
-				return
-			end
-			if io.KeyCode == Enum.KeyCode.E then
-				toggle("inventory")
-			elseif io.KeyCode == Enum.KeyCode.N then
-				toggle("music")
-			elseif io.KeyCode == Enum.KeyCode.M then
-				toggle("mustard")
-			end
-		end)
+		local connections = {
+			--[[ KEYBINDS ================================]]
+			keybindconnection = UserInputService.InputBegan:Connect(function(io, gp)
+				-- Respect gameProcessed
+				if io.KeyCode == Enum.KeyCode.Backquote then
+					-- warn("Backquote", gp)
+				end
+				if gp then
+					return
+				end
+				if io.KeyCode == Enum.KeyCode.E then
+					toggle("inventory")
+				elseif io.KeyCode == Enum.KeyCode.N then
+					toggle("music")
+				elseif io.KeyCode == Enum.KeyCode.C then
+					toggle("settings")
+				elseif io.KeyCode == Enum.KeyCode.M then
+					toggle("mustard")
+				end
+			end),
 
-		--[[ PLAYER ITEMS UPDATE EVENT ================================]]
-		local itemupdatedconnection = ItemUpdated.OnClientEvent:Connect(function(fetchedItems: { Item })
-			setPlayerData(function(prev: PlayerData)
-				local new = table.clone(prev)
-				new.Items = fetchedItems
-				return new
-			end)
-			setItems(fetchedItems)
-		end)
+			--[[ PLAYER ITEMS UPDATE EVENT ================================]]
+			itemupdatedconnection = ItemUpdated.OnClientEvent:Connect(function(fetchedItems: { Item })
+				setPlayerData(function(prev: PlayerData)
+					local new = table.clone(prev)
+					new.Items = fetchedItems
+					return new
+				end)
+				setItems(fetchedItems)
+			end),
+
+			--[[ PLACE ITEM PROMPT EVENT ================================]]
+			placeitemconneciton = PlaceItemEvent.OnClientEvent:Connect(function(SlotNum: Slot)
+				toggle("placeitem")
+				setPlaceSlot(SlotNum)
+
+				submitRef.current = function(UID: string)
+					PlaceItemEvent:FireServer(SlotNum, UID)
+					setActivePanel("none")
+					setPlaceSlot(nil)
+				end
+			end),
+			--[[ SELL ITEM PROMPT EVENT ================================]]
+			sellitemconneciton = SellItemsEvent.OnClientEvent:Connect(function()
+				toggle("sellitem")
+			end),
+			--[[ ITEM SLOTS CHANGED EVENT ================================]]
+			itemslotschanged = ItemSlotsUpdate.OnClientEvent:Connect(function(ItemSlots: { [string]: string })
+				setPlayerData(function(prev: PlayerData)
+					local clone = table.clone(prev)
+					clone.ItemSlots = ItemSlots
+					return clone
+				end)
+			end),
+		}
 
 		--[[ INITIALIZING ITEMS ================================]]
 		local fetchedItems: { Item }? = GetItems:InvokeServer()
 		assert(fetchedItems, "FAILED TO GET ITEMS")
 		setItems(fetchedItems)
 
-		--[[ PLACE ITEM PROMPT EVENT ================================]]
-		local PlaceItemEvent: RemoteEvent = Events:WaitForChild("PlaceItem")
-		local placeitemconneciton = PlaceItemEvent.OnClientEvent:Connect(function(SlotNum: Slot)
-			toggle("placeitem")
-			setPlaceSlot(SlotNum)
-
-			submitRef.current = function(UID: string)
-				PlaceItemEvent:FireServer(SlotNum, UID)
-				setActivePanel("none")
-				setPlaceSlot(nil)
-			end
-		end)
-
 		isMountedRef.current = true
 		return function()
-			itemupdatedconnection:Disconnect()
-			placeitemconneciton:Disconnect()
-			keybindconnection:Disconnect()
+			for i, c in connections do
+				c:Disconnect()
+			end
 			submitRef.current = nil
 		end
 	end, {})
 
+	local Panel = PlaceItemOpen
+			and e(PlaceItem, {
+				Items = items,
+				PlaceItemOpen = PlaceItemOpen,
+				clicked = function(textbutton: TextButton)
+					local UID = textbutton:GetAttribute("UID") :: string
+					if submitRef and typeof(submitRef.current) == "function" then
+						submitRef.current(UID)
+						setActivePanel("none")
+					else
+						-- warn("No SubmitRef")
+					end
+				end,
+				PlacedItemUids = PlayerData.ItemSlots and (function()
+					local PlacedItemUids = {}
+					for slot, itemuid in PlayerData.ItemSlots do
+						PlacedItemUids[itemuid] = true
+					end
+					return PlacedItemUids
+				end)() or {},
+				PlaceSlot = placeSlot,
+				close = function()
+					setActivePanel("none")
+				end,
+			})
+		or SettingsOpen and e(Settings, {
+			SettingsOpen = SettingsOpen,
+			PlayerData = PlayerData,
+		})
+		or SellItemOpen
+			and e(SellItem, {
+				Items = items,
+				SellItemOpen = SellItemOpen,
+				close = function()
+					setActivePanel("none")
+				end,
+				sell = function(selectedItems: { string })
+					(game.ReplicatedStorage.Shared.Events.SellItems :: RemoteEvent):FireServer(selectedItems)
+				end,
+				PlacedItemUids = PlayerData.ItemSlots and (function()
+					local PlacedItemUids = {}
+					for slot, itemuid in PlayerData.ItemSlots do
+						PlacedItemUids[itemuid] = true
+					end
+					return PlacedItemUids
+				end)() or {},
+			})
+
 	--[[ RENDER ]]
-	-- warn("activePanel", activePanel, "inventoryOpen", InventoryOpen)
 	return e("Frame", {
 		Size = UDim2.new(1, 0, 1, 0),
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0, 0, 0, 0),
-		ZIndex = 0,
+		ZIndex = 1,
 	}, {
+		CutsceneController = React.createElement(CutsceneController, {
+			OnCutsceneStart = function()
+				setActivePanel("none")
+			end,
+		}),
+		Music = e(Music, {
+			MusicOpen = MusicOpen,
+			PlayerData = PlayerData,
+			close = function()
+				toggle("music")
+			end,
+		}) or MustardOpen and e(Mustard, {
+			MustardOpen = MustardOpen,
+		}),
 		Inventory = e(Inventory, {
 			PlayerData = PlayerData,
 			InventoryOpen = InventoryOpen,
@@ -145,24 +229,7 @@ local function Main(props)
 				toggle("inventory")
 			end,
 		}),
-		PlaceItemPrompt = e(PlaceItem, {
-			Items = items,
-			PlaceItemOpen = PlaceItemOpen,
-			clicked = function(textbutton: TextButton)
-				local UID = textbutton:GetAttribute("UID") :: string
-				if submitRef and typeof(submitRef.current) == "function" then
-					submitRef.current(UID)
-					setActivePanel("none")
-				else
-					warn("No SubmitRef")
-				end
-			end,
-			PlaceSlot = placeSlot,
-			close = function()
-				setActivePanel("none")
-			end,
-		}),
-		HUD = React.createElement(HUD, {
+		HUD = e(HUD, {
 			PlayerData = PlayerData,
 			OnInventoryButtonClick = function()
 				toggle("inventory")
@@ -174,16 +241,8 @@ local function Main(props)
 				toggle("music")
 			end,
 		}),
-		Music = React.createElement(Music, {
-			MusicOpen = MusicOpen,
-			close = function()
-				toggle("music")
-			end,
-		}),
-		Mustard = React.createElement(Mustard, {
-			MustardOpen = MustardOpen,
-		}),
-		Padding = React.createElement("UIPadding", {
+		Panel = Panel,
+		Padding = e("UIPadding", {
 			PaddingTop = UDim.new(0, 16),
 			PaddingBottom = UDim.new(0, 16),
 			PaddingLeft = UDim.new(0, 16),

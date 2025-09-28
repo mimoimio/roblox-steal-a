@@ -1,24 +1,8 @@
-type PlayerData = {
-	Resources: { [string]: number },
-	PlayerSettings: { MusicVolume: number },
-	Progress: { EXP: number, LVL: number },
-	Items: {
-		{
-			UID: string,
-			ItemId: string,
-			DisplayName: string,
-			Rate: number,
-		}
-	},
-	ItemSlots: { -- contains UID of items from PlayerData.Items
-		Slot1: string?,
-		Slot2: string?,
-		Slot3: string?,
-		Slot4: string?,
-		Slot5: string?,
-		Slot6: string?,
-	},
-}
+local sharedtypes = require(game.ReplicatedStorage.Shared.types)
+type Item = sharedtypes.Item
+type PlayerData = sharedtypes.PlayerData
+type ItemConfig = sharedtypes.ItemConfig
+
 local DatastoreService = game:GetService("DataStoreService")
 local PlayerDataStore = DatastoreService:GetDataStore("Player")
 local DefaultPlayerData = require(game.ReplicatedStorage.Shared.Configs.DefaultPlayerData)
@@ -60,7 +44,12 @@ function PlayerDataService:LoadPlayerData(player: Player)
 	return PlayerData
 end
 
-function PlayerDataService:SavePlayerData(player: Player, data)
+function PlayerDataService:SavePlayerData(player: Player, data: PlayerData)
+	-- cleanup functions from datastore
+	for i, c: Item in data.Items do
+		c.Effect = nil
+	end
+
 	local success, err = pcall(function()
 		PlayerDataStore:SetAsync(player.UserId, data)
 	end)

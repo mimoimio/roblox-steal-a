@@ -1,8 +1,5 @@
-export type PlayerSettings = {
-	MusicMuted: boolean?,
-	MusicVolume: number?,
-	AxeActive: boolean?,
-}
+local sharedtypes = require(game.ReplicatedStorage.Shared.types)
+type PlayerSettings = sharedtypes.PlayerSettings
 
 local PlayerSettings: PlayerSettings = {}
 PlayerSettings.__index = PlayerSettings
@@ -13,7 +10,6 @@ local Owners: { [{ any }]: Player } = {}
 local SetPlayerSettings = Instance.new("RemoteEvent", game.ReplicatedStorage.Shared.Events)
 SetPlayerSettings.Name = "SetPlayerSettings"
 SetPlayerSettings.OnServerEvent:Connect(function(player, ps: PlayerSettings)
-	warn("Saved")
 	PlayerSettings.Collections[player].MusicVolume = ps.MusicVolume
 end)
 
@@ -25,7 +21,6 @@ GetPlayerSettings.OnServerInvoke = function(player)
 			warn("waiting for the player", player, "'s settings")
 			task.wait()
 		end
-		warn(PlayerSettings.Collections[player], "RETRUNIGN")
 		return PlayerSettings.Collections[player]
 	else
 		warn("")

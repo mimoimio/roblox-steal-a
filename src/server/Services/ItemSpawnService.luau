@@ -45,7 +45,12 @@ end
 
 local function createPrompt(parentPart: BasePart): ProximityPrompt
 	local pp = Instance.new("ProximityPrompt")
-	pp.MaxActivationDistance = 6
+	pp.MaxActivationDistance = parentPart.Parent:IsA("Model")
+			and (function(): Vector3
+				local c, v = (parentPart.Parent :: Model):GetBoundingBox()
+				return v
+			end)().Magnitude
+		or 6
 	pp.KeyboardKeyCode = Enum.KeyCode.F
 	pp.GamepadKeyCode = Enum.KeyCode.ButtonL3
 	pp.RequiresLineOfSight = false
@@ -86,7 +91,15 @@ local function spawnOne(cfg: ItemConfig, position: Vector3, container: Instance)
 	end
 
 	local model = template:Clone()
-	model.Name = (cfg.DisplayName or itemId) .. ""
+	local humanoid: Humanoid = model:FindFirstChild("Humanoid")
+	if humanoid then
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+	end
+	-- model.Name = (cfg.DisplayName or itemId) .. "\n" .. cfg.Rate .. "/s"
+	model.PrimaryPart.BillboardGui:WaitForChild("TextLabel").Text = (cfg.DisplayName or itemId)
+		.. "\n"
+		.. cfg.Rate
+		.. "/s"
 	model.Parent = container
 
 	safeSetAttributes(model, cfg)
@@ -97,7 +110,7 @@ local function spawnOne(cfg: ItemConfig, position: Vector3, container: Instance)
 		model:Destroy()
 		return
 	end
-	primary.Anchored = true
+	primary.Anchored = false
 
 	-- Place it
 	model:PivotTo(CFrame.new(position) * CFrame.Angles(0, math.random() * 2 * math.pi, 0))
@@ -120,6 +133,14 @@ function ItemSpawnService.initialize()
 	-- Container for spawned items
 	local itemsFolder = workspace:FindFirstChild("ItemsFolder") or Instance.new("Folder", workspace)
 	itemsFolder.Name = "ItemsFolder"
+
+	-- setenabled phsyics
+	for i, m: Model in game.ReplicatedStorage.Shared.Models:GetChildren() do
+		local humanoid: Humanoid = m:FindFirstChild("Humanoid")
+		if humanoid then
+			humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+		end
+	end
 
 	-- Wait for grid to generate some usable positions
 	task.spawn(function()
@@ -172,16 +193,16 @@ function ItemSpawnService.initialize()
 		prompt.ActionText = "Picking up..."
 
 		-- Grant the item to the triggering player
-		local ok, err = pcall(function()
-			Item.new(meta.itemId, player)
-		end)
-		if not ok then
-			warn("Failed to create item for player:", err)
-			return
-		end
+		-- local ok, err = pcall(function()
+		Item.new(meta.itemId, player)
+		-- end)
+		-- if not ok then
+		-- 	warn("Failed to create item for player:", err)
+		-- 	return
+		-- end
 		-- Cleanup: return the position to the grid and remove the model
 		GridService.InsertPosition(meta.position)
-		-- ItemSpawnService.Collections[model] = nil
+		ItemSpawnService.Collections[model] = nil
 		model:Destroy()
 		processing[prompt] = nil
 		-- spawnOne(itemConfigById[meta.itemId], GridService.RemoveRandom(), itemsFolder)

@@ -38,6 +38,7 @@ local function HUD(props)
 		Position = UDim2.new(0, 0, 0, 0),
 		Active = false,
 		ref = hudRef,
+		ZIndex = 0,
 	}, {
 		RightHud = React.createElement("Frame", {
 			Name = "RightHud",
@@ -81,27 +82,27 @@ local function HUD(props)
 					TextColor3 = Color3.new(1, 1, 1),
 				}),
 			}),
-			-- SettingsButton = React.createElement("ImageButton", {
-			-- 	Name = "SettingsButton",
-			-- 	Position = UDim2.new(0.5, 0, 0, 0),
-			-- 	AnchorPoint = Vector2.new(0.5, 0),
-			-- 	BackgroundTransparency = 0.4,
-			-- 	BorderSizePixel = 0,
-			-- 	[React.Event.Activated] = props.OnSettingsButtonClick,
-			-- }, {
-			-- 	rounded = React.createElement(require(script.Parent.ui.rounded)),
-			-- 	TextLabel = React.createElement("TextLabel", {
-			-- 		Position = UDim2.new(0.5, 0, 1, -8),
-			-- 		Size = UDim2.new(1, 0, 01, 0),
-			-- 		AnchorPoint = Vector2.new(0.5, 1),
-			-- 		BackgroundTransparency = 1,
-			-- 		Font = "FredokaOne",
-			-- 		TextSize = 14,
-			-- 		Text = "Settings [C]",
-			-- 		Active = false,
-			-- 		TextColor3 = Color3.new(1, 1, 1),
-			-- 	}),
-			-- }),
+			SettingsButton = React.createElement("ImageButton", {
+				Name = "SettingsButton",
+				Position = UDim2.new(0.5, 0, 0, 0),
+				AnchorPoint = Vector2.new(0.5, 0),
+				BackgroundTransparency = 0.4,
+				BorderSizePixel = 0,
+				[React.Event.Activated] = props.OnSettingsButtonClick,
+			}, {
+				rounded = React.createElement(require(script.Parent.ui.rounded)),
+				TextLabel = React.createElement("TextLabel", {
+					Position = UDim2.new(0.5, 0, 1, -8),
+					Size = UDim2.new(1, 0, 01, 0),
+					AnchorPoint = Vector2.new(0.5, 1),
+					BackgroundTransparency = 1,
+					Font = "FredokaOne",
+					TextSize = 14,
+					Text = "Settings [C]",
+					Active = false,
+					TextColor3 = Color3.new(1, 1, 1),
+				}),
+			}),
 			MusicButton = React.createElement("ImageButton", {
 				Name = "SettingsButton",
 				Position = UDim2.new(0.5, 0, 0, 0),

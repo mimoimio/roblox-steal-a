@@ -2,13 +2,6 @@ local React = require(game.ReplicatedStorage.Packages.React)
 local e = React.createElement
 local TS = game:GetService("TweenService")
 local useToast = require(game.ReplicatedStorage.Shared.ReactComponents.Toasts).useToast
--- Props:
---  UID: string
---  DisplayName: string
---  Height: number? (pixel height) default 50
---  TweenTime: number? default 0.25
---  Children? (additional descendants)
-
 local DEFAULT_TWEEN = 0.25
 local MOUNTED_SIZE = UDim2.new(1, 0, 1, 0)
 
@@ -23,7 +16,9 @@ local function InventoryItem(props: { isMountedRef: { current: boolean } })
 		local label: TextLabel? = labelRef.current
 		if not label or not props.isMountedRef or not props.isMountedRef.current then
 			setSize(MOUNTED_SIZE)
-			return
+			return function()
+				toast.open("- " .. props.Item.DisplayName, 3, Color3.new(1, 0, 0))
+			end
 		end
 		-- Start collapsed (Size already set in element props) then tween to full
 		local c
@@ -41,7 +36,7 @@ local function InventoryItem(props: { isMountedRef: { current: boolean } })
 				setSize(MOUNTED_SIZE)
 			end
 		end
-		toast.open("+ " .. props.DisplayName)
+		toast.open("+ " .. props.Item.DisplayName)
 		local sound: Sound = game.ReplicatedStorage.Shared.SFX:FindFirstChild("PickUp")
 		if sound then
 			task.spawn(function()
@@ -56,6 +51,7 @@ local function InventoryItem(props: { isMountedRef: { current: boolean } })
 			end)
 		end
 		return function()
+			toast.open("- " .. props.Item.DisplayName, 3, Color3.new(1, 0, 0))
 			if c then
 				c:Disconnect()
 			end
@@ -67,7 +63,7 @@ local function InventoryItem(props: { isMountedRef: { current: boolean } })
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		LayoutOrder = props.LayoutOrder,
-		ZIndex = 12,
+		ZIndex = 3,
 		ref = frameRef,
 	}, {
 		TextLabel = e("TextLabel", {
@@ -77,9 +73,9 @@ local function InventoryItem(props: { isMountedRef: { current: boolean } })
 			BackgroundTransparency = 0.9,
 			BorderSizePixel = 0,
 			Font = "FredokaOne",
-			ZIndex = 13,
+			ZIndex = 4,
 			TextSize = 14,
-			Text = props.DisplayName,
+			Text = props.Item.DisplayName .. "\n" .. props.Item.Rate .. "/s",
 			TextColor3 = Color3.new(1, 1, 1),
 			ClipsDescendants = true,
 			ref = labelRef,

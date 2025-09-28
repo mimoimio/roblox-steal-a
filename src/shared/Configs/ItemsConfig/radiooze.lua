@@ -3,7 +3,7 @@ type ItemConfig = sharedtypes.ItemConfig
 type Item = sharedtypes.Item
 type TycoonProps = sharedtypes.TycoonProps
 return {
-	ItemId = "rock",
-	DisplayName = "Rock",
-	Rate = 2,
+	ItemId = "radiooze",
+	DisplayName = "Radioactive Ooze",
+	Rate = 200,
 } :: ItemConfig

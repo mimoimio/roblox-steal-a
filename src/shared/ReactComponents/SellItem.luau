@@ -21,17 +21,16 @@ local useState = React.useState
 
 type Slot = "Slot1" | "Slot2" | "Slot3" | "Slot4" | "Slot5" | "Slot6"
 
-local function PlaceItem(props: {
+local function SellItem(props: {
 	Items: { Item },
-	PlaceItemOpen: boolean,
+	SellItemOpen: boolean,
 	clicked: (() -> nil)?,
-	PlaceSlot: Slot,
+	SellSlot: Slot,
 	close: () -> nil,
-	PlacedItemUids: {},
 })
-	local Items: { Item } = props.Items or {}
 	local Phase: "opening" | "open" | "closing" | "closed", setPhase = React.useState("closed")
 	local visible, setVisible = React.useState(Phase ~= "closed")
+	local selectedItems, setSelecteditems = useState({} :: { [string]: boolean? })
 
 	local children = {
 		verticallist = e("UIGridLayout", {
@@ -43,19 +42,43 @@ local function PlaceItem(props: {
 	}
 
 	local SFRef = React.useRef()
+	useEffect(function()
+		local sf = SFRef.current
+		if sf and sf:IsA("ScrollingFrame") then
+			local as = sf.ScrollWrapper.AbsoluteSize
+			sf.CanvasSize = UDim2.new(0, as.X, 0, as.Y)
+		end
+	end, { props.Items })
 	local childNum = 0
-
-	for i, item in Items do
+	for i, item in props.Items or {} do
 		childNum += 1
-		children["item" .. item.UID] = e(PICell, {
+		children[item.UID] = e(PICell, {
 			key = item.UID,
 			UID = item.UID,
 			Item = item,
 			LayoutOrder = item.Rate,
-			clicked = props.clicked,
+			clicked = function(button: TextButton)
+				if not button or not button:IsA("TextButton") then
+					return
+				end
+				local UID = button:GetAttribute("UID")
+				if not UID then
+					return
+				end
+				setSelecteditems(function(prev)
+					local newSelectedItems = table.clone(prev)
+					if newSelectedItems[UID] then
+						newSelectedItems[UID] = nil
+					else
+						newSelectedItems[UID] = true
+					end
+					return newSelectedItems
+				end)
+			end,
 			Placed = (function()
 				return props.PlacedItemUids[item.UID]
 			end)(),
+			Selected = selectedItems[item.UID],
 		}, {
 			rounded = e(rounded),
 		})
@@ -74,7 +97,7 @@ local function PlaceItem(props: {
 			tweenRef.current:Cancel()
 			tweenRef.current = nil
 		end
-		if props.PlaceItemOpen then
+		if props.SellItemOpen then
 			setPhase("opening")
 			setVisible(true) -- show immediately
 			local tween = TS:Create(frame, TweenInfo.new(animDur), { Position = OPEN_POS, Rotation = OPEN_ROT })
@@ -97,13 +120,12 @@ local function PlaceItem(props: {
 			end)
 			tween:Play()
 		end
-	end, { props.PlaceItemOpen })
-	-- warn("children", children)
+	end, { props.SellItemOpen })
 	return e("Frame", {
 		Size = UDim2.new(1, 0, 1, 0),
 		Position = CLOSED_POS,
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		BackgroundColor3 = Color3.new(0, 0.2, 0.2),
+		BackgroundColor3 = Color3.new(0.2, 0.1, 0),
 		BackgroundTransparency = 0.8,
 		BorderSizePixel = 0,
 		Active = true,
@@ -112,16 +134,69 @@ local function PlaceItem(props: {
 		ClipsDescendants = false,
 		ZIndex = 1,
 	}, {
-		ScrollingFrame = e("ScrollingFrame", {
-			ScrollingDirection = Enum.ScrollingDirection.Y,
+		MainFrame = e("Frame", {
 			Size = UDim2.new(1, 0, 1, 0),
 			Position = UDim2.new(0, 0, 0, 0),
 			BorderSizePixel = 0,
 			BackgroundTransparency = 1,
-			ref = SFRef,
 			ClipsDescendants = true,
-			AutomaticCanvasSize = Enum.AutomaticSize.XY,
-		}, children),
+		}, {
+			ScrollingFrame = e("ScrollingFrame", {
+				ScrollingDirection = Enum.ScrollingDirection.Y,
+				BorderSizePixel = 0,
+				BackgroundTransparency = 1,
+				ref = SFRef,
+				ClipsDescendants = true,
+				AutomaticCanvasSize = Enum.AutomaticSize.Y,
+				LayoutOrder = 1,
+			}, {
+				ScrollWrapper = e("Frame", {
+					AutomaticSize = Enum.AutomaticSize.Y,
+					BackgroundTransparency = 1,
+					Size = UDim2.new(1, 0, 1, 0),
+				}, children),
+			}),
+			OpsFrame = e("Frame", {
+				Size = UDim2.new(1, 0, 1, 0),
+				BorderSizePixel = 0,
+				BackgroundTransparency = 1,
+				LayoutOrder = 2,
+				ClipsDescendants = true,
+			}, {
+				pad = e(require(script.Parent.ui.padding)),
+				TextButton = e("TextButton", {
+					Text = "SELL",
+					LayoutOrder = 2,
+					TextSize = 20,
+					Font = Enum.Font.FredokaOne,
+					BackgroundTransparency = 0,
+					BackgroundColor3 = Color3.new(1, 0.4, 0.4),
+					AutomaticSize = Enum.AutomaticSize.XY,
+					[React.Event.Activated] = function()
+						props.sell(selectedItems)
+						props.close()
+					end,
+				}, e(require(script.Parent.ui.padding))),
+
+				UIListLayout = e("UIListLayout", {
+					-- CellSize = UDim2.new(0.5, 0, 1, 0),
+					Padding = UDim.new(0, 8),
+					SortOrder = Enum.SortOrder.LayoutOrder,
+					FillDirection = Enum.FillDirection.Vertical,
+					-- HorizontalFlex = "Fill",
+					-- FillDirectionMaxCells = 1,
+					HorizontalAlignment = Enum.HorizontalAlignment.Center,
+				}),
+			}),
+			UIGridLayout = e("UIGridLayout", {
+				CellSize = UDim2.new(0.5, 0, 1, 0),
+				CellPadding = UDim2.new(0, 8, 0, 8),
+				SortOrder = Enum.SortOrder.LayoutOrder,
+				FillDirection = Enum.FillDirection.Vertical,
+				FillDirectionMaxCells = 1,
+				-- HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			}),
+		}),
 		UISizeConstraint = e("UISizeConstraint", {
 			MaxSize = Vector2.new(720, 480),
 		}),
@@ -150,7 +225,7 @@ local function PlaceItem(props: {
 			BorderSizePixel = 0,
 			Font = "FredokaOne",
 			TextSize = 20,
-			Text = "PLACE ITEM: " .. (props.PlaceSlot or ""),
+			Text = "SELL ITEM: " .. (props.SellSlot or ""),
 			TextColor3 = Color3.new(1, 1, 1),
 			TextStrokeColor3 = Color3.new(0, 0, 0),
 			TextStrokeTransparency = 0,
@@ -158,4 +233,19 @@ local function PlaceItem(props: {
 	})
 end
 
-return PlaceItem
+return SellItem
+
+--[[
+
+	Selling an item: Item.sell( {ItemId} ): boolean
+	
+	gui:
+		SellItemFrame {
+			submitSell: (selectedItems:{string})->
+		}
+			PICell:{
+				Selected: boolean
+			}
+			Confirm: {}
+
+]]

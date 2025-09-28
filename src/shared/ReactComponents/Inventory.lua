@@ -41,6 +41,7 @@ local function Inventory(props: {
 			CellSize = UDim2.new(0, 100, 0, 100),
 			CellPadding = UDim2.new(0, 8, 0, 8),
 			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
 	}
 
@@ -50,12 +51,16 @@ local function Inventory(props: {
 	-- Abstracted per-item UI component with mount tween (see InventoryItem.luau)
 	local InventoryItem = require(script.Parent.InventoryItem)
 	for i, item in Items do
+		if not item.UID then
+			warn("✨✨✨", item.UID or item)
+			continue
+		end
 		childNum += 1
 		children["item" .. item.UID] = e(InventoryItem, {
 			key = item.UID,
 			UID = item.UID,
-			DisplayName = item.DisplayName,
-			LayoutOrder = i,
+			Item = item,
+			LayoutOrder = item.Rate,
 			isMountedRef = props.isMountedRef,
 			InventoryOpen = props.InventoryOpen,
 		}, {
@@ -113,7 +118,7 @@ local function Inventory(props: {
 		Visible = visible,
 		ref = FrameRef,
 		ClipsDescendants = false,
-		ZIndex = 10,
+		ZIndex = 1,
 	}, {
 		ScrollingFrame = e("ScrollingFrame", {
 			ScrollingDirection = Enum.ScrollingDirection.Y,
@@ -123,7 +128,7 @@ local function Inventory(props: {
 			BackgroundTransparency = 1,
 			ref = SFRef,
 			Active = false,
-			ZIndex = 11,
+			ZIndex = 2,
 			ClipsDescendants = true,
 			AutomaticCanvasSize = Enum.AutomaticSize.XY,
 		}, children),
@@ -140,7 +145,7 @@ local function Inventory(props: {
 			BackgroundColor3 = Color3.new(1, 0.2, 0.4),
 			TextColor3 = Color3.new(1, 1, 1),
 			TextSize = 42,
-			ZIndex = 100,
+			ZIndex = 2,
 			[React.Event.Activated] = props.close,
 			Position = UDim2.new(1, 0, 0, 0),
 			AnchorPoint = Vector2.new(0.5, 0.5),

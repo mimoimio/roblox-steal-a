@@ -1,3 +1,5 @@
+local sharedtypes = require(game.ReplicatedStorage.Shared.types)
+type PlayerData = sharedtypes.PlayerData
 local React = require(game.ReplicatedStorage.Packages.React)
 local e = React.createElement
 local useEffect = React.useEffect
@@ -14,7 +16,7 @@ local OPEN_POS = UDim2.new(0.5, 0, 0.5, 0)
 local CLOSED_SIZE = UDim2.new(0, 0, 0, 0)
 local CLOSED_POS = UDim2.new(1.5, 0, 1.5, 0)
 
-local function Music(props)
+local function Music(props: { PlayerData: PlayerData })
 	local Phase: "opening" | "open" | "closing" | "closed", setPhase = React.useState("closed")
 	local visible, setVisible = React.useState(Phase ~= "closed")
 
@@ -24,7 +26,10 @@ local function Music(props)
 	local playingSoundRef = React.useRef(nil)
 	local endedConnRef = React.useRef(nil)
 
-	local Volume, setVolume = React.useState(1)
+	local PlayerData: PlayerData? = props.PlayerData or {}
+	local PlayerSettings = PlayerData.PlayerSettings or {}
+
+	local Volume, setVolume = React.useState(PlayerSettings.MusicVolume or 1)
 	local playingBaseVolumeRef = React.useRef(1) -- stores the cloned sound's original Volume
 	local settingsLoaded, setSettingsLoaded = React.useState(false)
 
@@ -40,7 +45,7 @@ local function Music(props)
 			for _, inst in folder:GetChildren() do
 				if inst:IsA("Sound") then
 					table.insert(list, inst)
-					warn(inst)
+					-- warn(inst)
 				end
 			end
 		else
@@ -343,7 +348,7 @@ local function Music(props)
 			BackgroundColor3 = Color3.new(1, 0.2, 0.4),
 			TextColor3 = Color3.new(1, 1, 1),
 			TextSize = 42,
-			ZIndex = 100,
+			ZIndex = 2,
 			[React.Event.Activated] = props.close,
 			Position = UDim2.new(1, 0, 0, 0),
 			AnchorPoint = Vector2.new(1, 0),

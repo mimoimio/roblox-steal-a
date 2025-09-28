@@ -1,7 +1,7 @@
 local Item = require(game.ServerScriptService.Server.Classes.Item)
 local PlayerData = require(game.ServerScriptService.Server.Classes.PlayerData)
 
-local EventsService = {}
+local RemoteEventsService = {}
 
 local CreateItem = Instance.new("RemoteEvent", game.ReplicatedStorage.Shared.Events)
 CreateItem.Name = "CreateItem"
@@ -18,7 +18,7 @@ GetPlayerData.Name = "GetPlayerData"
 local ResourcesUpdated = Instance.new("RemoteEvent", game.ReplicatedStorage.Shared.Events)
 ResourcesUpdated.Name = "ResourcesUpdated"
 
-function EventsService.initialize()
+function RemoteEventsService.initialize()
 	CreateItem.OnServerEvent:Connect(function(player, ItemId)
 		Item.new(ItemId, player)
 	end)
@@ -35,4 +35,4 @@ function EventsService.initialize()
 	end
 end
 
-return EventsService
+return RemoteEventsService

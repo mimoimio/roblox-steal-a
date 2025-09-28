@@ -9,20 +9,29 @@ local Events = game.ReplicatedStorage.Shared:WaitForChild("Events")
 local PlaceItem = Instance.new("RemoteEvent", Events)
 PlaceItem.Name = "PlaceItem"
 
+local SellItems = Instance.new("RemoteEvent", Events)
+SellItems.Name = "SellItems"
+
+local ItemSlotsUpdate = Instance.new("RemoteEvent", Events)
+ItemSlotsUpdate.Name = "ItemSlotsUpdate"
+
 -- local ItemRenderService = require(script.Services.ItemRenderService)
 -- ItemRenderService.new(workspace.Part, AddItem, RemoveItem, RemoveFirst)
 
 local PlayerService = require(script.Services.PlayerService)
 PlayerService.initialize()
 
-local EventsService = require(script.Services.EventsService)
-EventsService.initialize()
+local RemoteEventsService = require(script.Services.RemoteEventsService)
+RemoteEventsService.initialize()
 
 local TycoonService = require(script.Services.TycoonService)
 TycoonService.initialize()
 
 local GridService = require(script.Services.GridService)
 GridService.initialize()
+
+local TreeSpawnService = require(script.Services.TreeSpawnService)
+TreeSpawnService.initialize()
 
 local ItemSpawnService = require(script.Services.ItemSpawnService)
 ItemSpawnService.initialize()
