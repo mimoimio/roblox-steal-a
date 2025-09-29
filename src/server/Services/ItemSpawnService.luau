@@ -1,11 +1,12 @@
 local ItemSpawnService = {}
 ItemSpawnService.__index = ItemSpawnService
 
-type ItemConfig = {
-	ItemId: string,
-	DisplayName: string,
-	Rate: number,
-}
+local sharedtypes = require(game.ReplicatedStorage.Shared.types)
+type Item = sharedtypes.Item
+type ItemConfig = sharedtypes.ItemConfig
+type VariationConfig = sharedtypes.VariationConfig
+type TierConfig = sharedtypes.TierConfig
+type PlayerData = sharedtypes.PlayerData
 
 -- Registry of spawned item models to their metadata
 -- [Model] = { itemId: string, displayName: string?, position: Vector3 }
@@ -16,6 +17,8 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local Item = require(game.ServerScriptService.Server.Classes.Item)
 local GridService = require(script.Parent.GridService)
 
+local VariationsConfig: { VariationConfig } = require(game.ReplicatedStorage.Shared.Configs.VariationsConfig)
+local TiersConfig: { TierConfig } = require(game.ReplicatedStorage.Shared.Configs.TiersConfig)
 local rng = Random.new()
 
 local function safeSetAttributes(model: Model, cfg: {})
@@ -76,7 +79,7 @@ if #itemConfigs == 0 then
 	return
 end
 
-local function spawnOne(cfg: ItemConfig, position: Vector3, container: Instance)
+local function spawnOne(cfg: ItemConfig, varcfg: VariationConfig, position: Vector3, container: Instance)
 	local itemId: string = cfg.ItemId
 	if not itemId then
 		warn("Item config missing ItemId; skipping")
@@ -95,11 +98,24 @@ local function spawnOne(cfg: ItemConfig, position: Vector3, container: Instance)
 	if humanoid then
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
 	end
-	-- model.Name = (cfg.DisplayName or itemId) .. "\n" .. cfg.Rate .. "/s"
-	model.PrimaryPart.BillboardGui:WaitForChild("TextLabel").Text = (cfg.DisplayName or itemId)
-		.. "\n"
-		.. cfg.Rate
-		.. "/s"
+
+	-- Tier Display
+	local tier = TiersConfig[cfg.Tier]
+	local tierlabel: TextLabel = model.PrimaryPart:FindFirstChild("TierGui"):FindFirstChild("TextLabel")
+	tierlabel.Text = tier.DisplayName
+	tierlabel.TextColor3 = tier.ColorPrimary
+
+	-- Variation Display
+	if varcfg.VariationId ~= "none" then
+		local varlabel: TextLabel = model.PrimaryPart:FindFirstChild("VariationGui"):FindFirstChild("TextLabel")
+		varlabel.Text = varcfg.DisplayName
+		varlabel.TextColor3 = varcfg.ColorPrimary
+	end
+
+	-- Name and Rate Display
+	local namelabel: TextLabel = model.PrimaryPart.BillboardGui:FindFirstChild("TextLabel")
+	namelabel.Text = (cfg.DisplayName or itemId) .. "\n" .. cfg.Rate * (varcfg.Multiplier or 1) .. "/s"
+
 	model.Parent = container
 
 	safeSetAttributes(model, cfg)
@@ -126,6 +142,7 @@ local function spawnOne(cfg: ItemConfig, position: Vector3, container: Instance)
 		itemId = itemId,
 		displayName = cfg.DisplayName,
 		position = position,
+		varid = varcfg.VariationId,
 	}
 end
 
@@ -154,6 +171,9 @@ function ItemSpawnService.initialize()
 
 		for i = 1, 100 do
 			local ic = itemConfigs[rng:NextInteger(1, #itemConfigs)]
+			local tier = TiersConfig[rng:NextInteger(1, #TiersConfig)]
+			local variation = VariationsConfig[rng:NextInteger(1, #VariationsConfig)]
+
 			if not ic or typeof(ic) ~= "table" or not ic.ItemId then
 				warn("Invalid item config in", itemConfigs)
 				continue
@@ -163,13 +183,14 @@ function ItemSpawnService.initialize()
 			if #GridService.Positions > 0 then
 				pos = GridService.RemoveRandom()
 			end
+
 			if not pos then
 				-- If grid ran out, synthesize a simple position spread
 				local theta = (i / 100) * math.pi * 2
 				pos = Vector3.new(math.cos(theta), 0, math.sin(theta)) * 100
 			end
 
-			spawnOne(ic, pos, itemsFolder)
+			spawnOne(ic, variation, pos, itemsFolder)
 		end
 	end)
 
@@ -194,7 +215,7 @@ function ItemSpawnService.initialize()
 
 		-- Grant the item to the triggering player
 		-- local ok, err = pcall(function()
-		Item.new(meta.itemId, player)
+		Item.new(meta.itemId, player, meta.varid)
 		-- end)
 		-- if not ok then
 		-- 	warn("Failed to create item for player:", err)
@@ -206,7 +227,12 @@ function ItemSpawnService.initialize()
 		model:Destroy()
 		processing[prompt] = nil
 		-- spawnOne(itemConfigById[meta.itemId], GridService.RemoveRandom(), itemsFolder)
-		spawnOne(itemConfigs[rng:NextInteger(1, #itemConfigs)], GridService.RemoveRandom(), itemsFolder)
+		spawnOne(
+			itemConfigs[rng:NextInteger(1, #itemConfigs)],
+			VariationsConfig[rng:NextInteger(1, #VariationsConfig)],
+			GridService.RemoveRandom(),
+			itemsFolder
+		)
 	end)
 end
 

@@ -6,4 +6,5 @@ return {
 	ItemId = "dinosaur",
 	DisplayName = "The Rigged Creature of All Time",
 	Rate = 400,
+	Tier = "rare",
 } :: ItemConfig

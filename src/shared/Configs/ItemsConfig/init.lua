@@ -2,6 +2,7 @@ type ItemConfig = {
 	ItemId: string,
 	DisplayName: string,
 	Rate: number,
+	Tier: string,
 }
 
 local ItemsConfig: { ItemConfig } = {}

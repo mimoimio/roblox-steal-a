@@ -1,6 +1,8 @@
 local sharedtypes = require(game.ReplicatedStorage.Shared.types)
 type Item = sharedtypes.Item
 type ItemConfig = sharedtypes.ItemConfig
+type VariationConfig = sharedtypes.VariationConfig
+type TierConfig = sharedtypes.TierConfig
 type PlayerData = sharedtypes.PlayerData
 
 --[[
@@ -10,6 +12,8 @@ type PlayerData = sharedtypes.PlayerData
 
 local PlayerData = require(game.ServerScriptService.Server.Classes.PlayerData)
 local ItemsConfig: { ItemConfig } = require(game.ReplicatedStorage.Shared.Configs.ItemsConfig)
+local VariationsConfig: { VariationConfig } = require(game.ReplicatedStorage.Shared.Configs.VariationsConfig)
+local TiersConfig: { TierConfig } = require(game.ReplicatedStorage.Shared.Configs.TiersConfig)
 local Item = {}
 Item.__index = Item
 Item.Collections = {} :: {
@@ -54,12 +58,19 @@ function Item:FireSoldEvent(player: Player)
 	ItemSold:Fire(PlayerData.Collections[player].Items, player)
 end
 
-function Item.new(ItemId: string, Player: Player): Item?
+function Item.new(ItemId: string, Player: Player, VariationId: string): Item?
 	local itemConfig: ItemConfig? = ItemsConfig[ItemId]
+	local variation: VariationConfig = VariationsConfig[VariationId]
+	local tier: TierConfig = TiersConfig[itemConfig.Tier]
+	assert(itemConfig, "NO ITEM WITH ID " .. ItemId .. " FOUND")
+	assert(itemConfig, "NO ITEM WITH ID " .. ItemId .. " FOUND")
 	assert(itemConfig, "NO ITEM WITH ID " .. ItemId .. " FOUND")
 
 	local self = setmetatable(table.clone(itemConfig), Item)
 	self.UID = Item.generateUID(Player)
+	self.Rate *= variation.Multiplier
+	self.Variation = variation.DisplayName
+	self.Tier = tier.DisplayName
 
 	table.insert(PlayerData.Collections[Player].Items, self)
 
@@ -75,7 +86,6 @@ end
 
 function Item:Sell(player)
 	local pd: PlayerData = PlayerData.Collections[player]
-	warn("PlayerData", PlayerData)
 	for i, item: Item in pd.Items do
 		if item.UID == self.UID then
 			table.remove(pd.Items, i)

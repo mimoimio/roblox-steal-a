@@ -1,9 +1,12 @@
-local sharedtypes = require(game.ReplicatedStorage.Shared.types)
-type ItemConfig = sharedtypes.ItemConfig
-type Item = sharedtypes.Item
-type TycoonProps = sharedtypes.TycoonProps
+type ItemConfig = {
+	ItemId: string,
+	DisplayName: string,
+	Rate: number,
+	Tier: string,
+}
 return {
-	ItemId = "rock",
-	DisplayName = "Rock",
-	Rate = 2,
+	ItemId = "box",
+	DisplayName = "Box",
+	Rate = 3,
+	Tier = "common",
 } :: ItemConfig

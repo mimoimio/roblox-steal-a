@@ -13,6 +13,7 @@ export type ItemConfig = {
 	ItemId: string,
 	DisplayName: string,
 	Rate: number,
+	Tier: string,
 }
 
 export type Item = {
@@ -30,6 +31,20 @@ export type PlayerData = {
 	Progress: { EXP: number, LVL: number },
 	Items: { Item },
 	ItemSlots: ItemSlots,
+}
+
+export type VariationConfig = {
+	VariationId: "none" | "copper" | "silver" | "gold" | "diamond" | "strange",
+	DisplayName: "" | "Copper" | "Silver" | "Gold" | "Diamond",
+	Multiplier: number,
+	ColorPrimary: Color3,
+	ColorSecondary: Color3?,
+}
+export type TierConfig = {
+	TierId: "common" | "uncommon" | "rare" | "epic" | "legendary" | "mythic",
+	DisplayName: "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary" | "Mythic",
+	ColorPrimary: Color3,
+	ColorSecondary: Color3?,
 }
 
 return {}

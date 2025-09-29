@@ -367,7 +367,7 @@ local function Tycoon(props: TycoonProps)
 							:WaitForChild("ResourcesUpdated")
 							:FireClient(props.Player, PlayerData.Collections[props.Player].Resources)
 						local textlabel = characterRef.current
-							and characterRef.current.HumanoidRootPart
+							and characterRef.current:FindFirstChild("HumanoidRootPart")
 							and characterRef.current.HumanoidRootPart:FindFirstChild("BillboardGui")
 							and characterRef.current.HumanoidRootPart.BillboardGui:FindFirstChild("TextLabel")
 						if textlabel and textlabel:IsA("TextLabel") then
@@ -506,9 +506,8 @@ local function TycoonApp(props)
 
 	local children = {}
 
-	-- warn("tycoons", tycoons)
+	warn("tycoons", tycoons)
 	for i, tycoon: TycoonProps in tycoons do
-		warn("Player", tycoon.Player, "created tycoon")
 		children[tycoon.Player.Name .. "'s Tycoon"] = e(Tycoon, {
 			key = "tycoon" .. tycoon.Player.UserId,
 			Player = tycoon.Player,
