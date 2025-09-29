@@ -58,7 +58,6 @@ local function Main(props)
 	local SellItemOpen = activePanel == "sellitem"
 	local SettingsOpen = activePanel == "settings"
 	local InventoryOpen = activePanel == "inventory"
-	local MustardOpen = activePanel == "mustard"
 	local MusicOpen = activePanel == "music"
 
 	-- Toggle helpers
@@ -86,9 +85,6 @@ local function Main(props)
 			--[[ KEYBINDS ================================]]
 			keybindconnection = UserInputService.InputBegan:Connect(function(io, gp)
 				-- Respect gameProcessed
-				if io.KeyCode == Enum.KeyCode.Backquote then
-					-- warn("Backquote", gp)
-				end
 				if gp then
 					return
 				end
@@ -218,8 +214,6 @@ local function Main(props)
 			close = function()
 				toggle("music")
 			end,
-		}) or MustardOpen and e(Mustard, {
-			MustardOpen = MustardOpen,
 		}),
 		Inventory = e(Inventory, {
 			PlayerData = PlayerData,
@@ -248,6 +242,7 @@ local function Main(props)
 			PaddingLeft = UDim.new(0, 16),
 			PaddingRight = UDim.new(0, 16),
 		}, {}),
+		-- test = e(require(script.Parent.test)),
 	})
 end
 

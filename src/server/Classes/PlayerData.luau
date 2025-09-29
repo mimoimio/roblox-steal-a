@@ -47,14 +47,13 @@ function PlayerData:GetItemFromUID(UID: string): Item?
 			return item
 		end
 	end
-	warn("NO ITEM", UID, " FOUND IN", pd.Items)
+	-- warn("NO ITEM", UID, " FOUND IN", pd.Items)
 	return
 end
 
 function PlayerData:FireItemUpdateEvent()
 	local self: PlayerData = self
 	local ItemUpdated: RemoteEvent = game.ReplicatedStorage.Shared.Events.ItemUpdated
-	warn(PlayerData.Owners[self], self)
 	ItemUpdated:FireClient(PlayerData.Owners[self], self.Items)
 end
 

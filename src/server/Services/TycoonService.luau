@@ -250,7 +250,6 @@ local function Tycoon(props: TycoonProps)
 						local itemFromUID: Item = pd:GetItemFromUID(i)
 						if itemFromUID then
 							Item.Sell(itemFromUID, props.Player)
-							warn("SOLD")
 						end
 					end
 					pd:FireItemUpdateEvent()

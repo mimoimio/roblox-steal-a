@@ -110,7 +110,7 @@ local function spawnOne(cfg: ItemConfig, position: Vector3, container: Instance)
 		model:Destroy()
 		return
 	end
-	primary.Anchored = false
+	primary.Anchored = true
 
 	-- Place it
 	model:PivotTo(CFrame.new(position) * CFrame.Angles(0, math.random() * 2 * math.pi, 0))
@@ -211,3 +211,4 @@ function ItemSpawnService.initialize()
 end
 
 return ItemSpawnService
+-- return { initialize = function() end }
