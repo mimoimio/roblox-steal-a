@@ -39,12 +39,14 @@ export type VariationConfig = {
 	Multiplier: number,
 	ColorPrimary: Color3,
 	ColorSecondary: Color3?,
+	Weight: number,
 }
 export type TierConfig = {
 	TierId: "common" | "uncommon" | "rare" | "epic" | "legendary" | "mythic",
 	DisplayName: "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary" | "Mythic",
 	ColorPrimary: Color3,
 	ColorSecondary: Color3?,
+	WorthScale: number,
 }
 
 return {}

@@ -10,4 +10,5 @@ return {
 	DisplayName = "Silver",
 	Multiplier = 3,
 	ColorPrimary = Color3.new(0.349019, 0.552941, 0.588235),
+	Weight = 100,
 }

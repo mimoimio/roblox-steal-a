@@ -14,8 +14,10 @@ ItemSpawnService.Collections = {}
 
 local ProximityPromptService = game:GetService("ProximityPromptService")
 
+local Alyanum = require(game.ReplicatedStorage.Packages.Alyanum)
 local Item = require(game.ServerScriptService.Server.Classes.Item)
 local GridService = require(script.Parent.GridService)
+local VariationRNGService = require(script.Parent.VariationRNGService)
 
 local VariationsConfig: { VariationConfig } = require(game.ReplicatedStorage.Shared.Configs.VariationsConfig)
 local TiersConfig: { TierConfig } = require(game.ReplicatedStorage.Shared.Configs.TiersConfig)
@@ -101,25 +103,31 @@ local function spawnOne(cfg: ItemConfig, varcfg: VariationConfig, position: Vect
 
 	-- Tier Display
 	local tier = TiersConfig[cfg.Tier]
-	local tierlabel: TextLabel = model.PrimaryPart:FindFirstChild("TierGui"):FindFirstChild("TextLabel")
-	tierlabel.Text = tier.DisplayName
-	tierlabel.TextColor3 = tier.ColorPrimary
 
-	-- Variation Display
-	if varcfg.VariationId ~= "none" then
-		local varlabel: TextLabel = model.PrimaryPart:FindFirstChild("VariationGui"):FindFirstChild("TextLabel")
-		varlabel.Text = varcfg.DisplayName
-		varlabel.TextColor3 = varcfg.ColorPrimary
-	end
-
-	-- Name and Rate Display
+	-- Name, Variation, Tier, and Rate Display
 	local namelabel: TextLabel = model.PrimaryPart.BillboardGui:FindFirstChild("TextLabel")
-	namelabel.Text = (cfg.DisplayName or itemId) .. "\n" .. cfg.Rate * (varcfg.Multiplier or 1) .. "/s"
+	local name = cfg.DisplayName
+	local varColor = varcfg.ColorPrimary:ToHex()
+	local varName = varcfg.DisplayName
+	local tierColor = tier.ColorPrimary:ToHex()
+	local tierName = tier.DisplayName
+	local rate = cfg.Rate * (varcfg.Multiplier or 1)
 
-	model.Parent = container
-
+	local text
+	if varcfg.VariationId ~= "none" then
+		text = --
+			([[<font size="48">%s</font>
+<font color="#%s">%s</font> | <font color="#%s">%s</font>
+<font>%s/s</font>]]):format(name, varColor, varName, tierColor, tierName, rate)
+	else
+		text = --
+			([[<font>%s</font>
+<font color="#%s">%s</font>
+<font>%s/s</font>]]):format(name, tierColor, tierName, rate)
+	end
+	namelabel.Text = text
 	safeSetAttributes(model, cfg)
-
+	model.Parent = container
 	local primary = ensurePrimaryPart(model)
 	if not primary then
 		warn("Model has no BasePart to attach prompt:", model:GetFullName())
@@ -150,6 +158,7 @@ function ItemSpawnService.initialize()
 	-- Container for spawned items
 	local itemsFolder = workspace:FindFirstChild("ItemsFolder") or Instance.new("Folder", workspace)
 	itemsFolder.Name = "ItemsFolder"
+	VariationRNGService.initialize()
 
 	-- setenabled phsyics
 	for i, m: Model in game.ReplicatedStorage.Shared.Models:GetChildren() do
@@ -172,7 +181,7 @@ function ItemSpawnService.initialize()
 		for i = 1, 100 do
 			local ic = itemConfigs[rng:NextInteger(1, #itemConfigs)]
 			local tier = TiersConfig[rng:NextInteger(1, #TiersConfig)]
-			local variation = VariationsConfig[rng:NextInteger(1, #VariationsConfig)]
+			local variation = VariationRNGService:roll()
 
 			if not ic or typeof(ic) ~= "table" or not ic.ItemId then
 				warn("Invalid item config in", itemConfigs)
@@ -213,15 +222,7 @@ function ItemSpawnService.initialize()
 		prompt.Enabled = false
 		prompt.ActionText = "Picking up..."
 
-		-- Grant the item to the triggering player
-		-- local ok, err = pcall(function()
 		Item.new(meta.itemId, player, meta.varid)
-		-- end)
-		-- if not ok then
-		-- 	warn("Failed to create item for player:", err)
-		-- 	return
-		-- end
-		-- Cleanup: return the position to the grid and remove the model
 		GridService.InsertPosition(meta.position)
 		ItemSpawnService.Collections[model] = nil
 		model:Destroy()
@@ -229,7 +230,7 @@ function ItemSpawnService.initialize()
 		-- spawnOne(itemConfigById[meta.itemId], GridService.RemoveRandom(), itemsFolder)
 		spawnOne(
 			itemConfigs[rng:NextInteger(1, #itemConfigs)],
-			VariationsConfig[rng:NextInteger(1, #VariationsConfig)],
+			VariationRNGService:roll(),
 			GridService.RemoveRandom(),
 			itemsFolder
 		)

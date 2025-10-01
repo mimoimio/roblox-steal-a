@@ -1,8 +1,16 @@
 local TweenService = game:GetService("TweenService")
 local self = {}
 
+local sunsetBindableEvent = Instance.new("BindableEvent")
+self.Sunset = sunsetBindableEvent.Event
+local sunriseBindableEvent = Instance.new("BindableEvent")
+self.Sunrise = sunriseBindableEvent.Event
+local started = false
 function self.start()
-	self.SecondsPerDay = 12 * 60
+	if started then
+		return
+	end
+	self.SecondsPerDay = 3 * 60
 	self.CurrentTime = game.Lighting.ClockTime
 	self.Lights = {}
 	for i, d in ipairs(workspace:GetDescendants()) do
@@ -11,15 +19,16 @@ function self.start()
 		end
 		table.insert(self.Lights, d)
 	end
-	self.IsMorning = game.Lighting.ClockTime >= 7 and game.Lighting.ClockTime < 18
+	self.IsMorning = game.Lighting.ClockTime >= 7 and game.Lighting.ClockTime < 18 or false
 	if self.IsMorning then
 		lightsOff()
 	end
 
 	game:GetService("RunService").Heartbeat:Connect(self.TimeIncrement)
+	started = true
 end
 
-function lightsOn() -- (NightTime)
+function lightsOn() -- (Sunset)
 	TweenService:Create(game.Lighting, TweenInfo.new(1), {
 		OutdoorAmbient = Color3.new(0.4, 0.3, 1),
 		Brightness = 0,
@@ -27,9 +36,10 @@ function lightsOn() -- (NightTime)
 	for i, light: Light in ipairs(self.Lights) do
 		light.Enabled = true
 	end
+	sunsetBindableEvent:Fire()
 end
 
-function lightsOff()
+function lightsOff() --(Sunrise)
 	TweenService:Create(game.Lighting, TweenInfo.new(1), {
 		OutdoorAmbient = Color3.new(1, 0.8, 0.5),
 		Brightness = 3,
@@ -37,6 +47,7 @@ function lightsOff()
 	for i, light: Light in ipairs(self.Lights) do
 		light.Enabled = false
 	end
+	sunriseBindableEvent:Fire()
 end
 -- local m = 24
 function self.TimeIncrement(dt)

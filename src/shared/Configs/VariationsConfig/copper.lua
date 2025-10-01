@@ -10,4 +10,5 @@ return {
 	DisplayName = "Copper",
 	Multiplier = 2,
 	ColorPrimary = Color3.new(0.639215, 0.388235, 0.388235),
+	Weight = 50,
 }

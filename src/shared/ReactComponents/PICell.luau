@@ -3,6 +3,10 @@ local e = React.createElement
 local TS = game:GetService("TweenService")
 local useToast = require(game.ReplicatedStorage.Shared.ReactComponents.Toasts).useToast
 
+local itemConfigs = require(game.ReplicatedStorage.Shared.Configs.ItemsConfig)
+local variationConfigs = require(game.ReplicatedStorage.Shared.Configs.VariationsConfig)
+local tierConfigs = require(game.ReplicatedStorage.Shared.Configs.TiersConfig)
+
 type Item = {
 	UID: string, --
 	ItemId: string,
@@ -21,6 +25,30 @@ local function PICell(props: {
 })
 	local frameRef = React.useRef(nil)
 
+	local cfg = itemConfigs[props.Item.ItemId]
+	local varcfg = variationConfigs[props.Item.Variation] or variationConfigs[(props.Item.Variation :: string):lower()]
+	local tier = tierConfigs[props.Item.Tier] or tierConfigs[(props.Item.Tier :: string):lower()]
+
+	-- Name, Variation, Tier, and Rate Display
+	local name = cfg.DisplayName
+	local varColor = varcfg.ColorPrimary:ToHex()
+	local varName = varcfg.DisplayName
+	local tierColor = tier.ColorPrimary:ToHex()
+	local tierName = tier.DisplayName
+	local rate = props.Item.Rate
+
+	local text
+	if varcfg.VariationId ~= "none" then
+		text = --
+			([[<stroke color="#000000" thickness="1"><font>%s</font>
+<font color="#%s">%s</font> | <font color="#%s">%s</font>
+<font>%s/s</font></stroke>]]):format(name, varColor, varName, tierColor, tierName, rate)
+	else
+		text = --
+			([[<stroke color="#000000" thickness="1"><font>%s</font>
+<font color="#%s">%s</font>
+<font>%s/s</font></stroke>]]):format(name, tierColor, tierName, rate)
+	end
 	return e("Frame", {
 		Size = Size,
 		BackgroundTransparency = 1,
@@ -40,7 +68,10 @@ local function PICell(props: {
 			BorderSizePixel = 0,
 			Font = "FredokaOne",
 			TextSize = 14,
-			Text = props.Item.DisplayName .. "\n" .. props.Item.Rate .. "/s",
+			TextWrapped = true,
+			Text = text,
+			--  props.Item.DisplayName .. "\n" .. props.Item.Rate .. "/s",
+			RichText = true,
 			TextColor3 = Color3.new(1, 1, 1),
 			ClipsDescendants = true,
 			ref = function(textbutton: TextButton)

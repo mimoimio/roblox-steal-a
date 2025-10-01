@@ -6,9 +6,9 @@ type VariationsConfig = {
 	ColorSecondary: Color3?,
 }
 return {
-	VariationId = "strange",
-	DisplayName = "Strange",
-	Multiplier = 13,
-	ColorPrimary = Color3.new(0.952941, 0.305882, 0.192156),
-	Weight = 700,
+	VariationId = "starlight",
+	DisplayName = "Starlight",
+	Multiplier = 6,
+	ColorPrimary = Color3.new(0.549019, 0.152941, 1),
+	Weight = 50,
 }

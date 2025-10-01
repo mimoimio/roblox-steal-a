@@ -16,6 +16,10 @@ local useRef = React.useRef
 local useEffect = React.useEffect
 local useState = React.useState
 
+local itemConfigs = require(game.ReplicatedStorage.Shared.Configs.ItemsConfig)
+local variationConfigs = require(game.ReplicatedStorage.Shared.Configs.VariationsConfig)
+local tierConfigs = require(game.ReplicatedStorage.Shared.Configs.TiersConfig)
+
 local TycoonService = {}
 local ItemSlots = require(game.ServerScriptService.Server.Classes.ItemSlots)
 local Item = require(game.ServerScriptService.Server.Classes.Item)
@@ -154,9 +158,37 @@ local function TycoonItem(props: { ItemUID: string | "none", Player: Player, Slo
 			local clone: Model = itemModel:Clone()
 
 			local tlabel = clone.PrimaryPart.BillboardGui:WaitForChild("TextLabel")
-			tlabel.Text = props.Item.DisplayName .. "\n" .. props.Item.Rate .. "/s"
+
+			local cfg = itemConfigs[item.ItemId]
+			local varcfg = variationConfigs[item.Variation] or variationConfigs[(item.Variation :: string):lower()]
+			local tier = tierConfigs[item.Tier] or tierConfigs[(item.Tier :: string):lower()]
+
+			-- Name, Variation, Tier, and Rate Display
+			local name = cfg.DisplayName
+			local varColor = varcfg.ColorPrimary:ToHex()
+			local varName = varcfg.DisplayName
+			local tierColor = tier.ColorPrimary:ToHex()
+			local tierName = tier.DisplayName
+			local rate = item.Rate
+			--cfg.Rate * (varcfg.Multiplier or 1)
+
+			local text
+			if varcfg.VariationId ~= "none" then
+				text = --
+					([[<font size="32">%s</font>
+<font color="#%s">%s</font> | <font color="#%s">%s</font>
+<font>%s/s</font>]]):format(name, varColor, varName, tierColor, tierName, rate)
+			else
+				text = --
+					([[<font>%s</font>
+<font color="#%s">%s</font>
+<font>%s/s</font>]]):format(name, tierColor, tierName, rate)
+			end
+			tlabel.Text = text
+
 			clone.PrimaryPart.Anchored = true
 			cloneRef.current = clone
+
 			clone.Parent = workspace
 			clone:PivotTo(slotPart:GetPivot() + Vector3.new(0, slotPart.Size.Y / 2, 0))
 		end
@@ -185,7 +217,34 @@ local function TycoonItem(props: { ItemUID: string | "none", Player: Player, Slo
 		-- rendering item model
 		if props.ItemUID ~= "none" then
 			local tlabel = model.PrimaryPart.BillboardGui:WaitForChild("TextLabel")
-			tlabel.Text = props.Item.DisplayName .. "\n" .. props.Item.Rate .. "/s"
+
+			local cfg = itemConfigs[props.Item.ItemId]
+			local varcfg = variationConfigs[props.Item.Variation]
+				or variationConfigs[(props.Item.Variation :: string):lower()]
+			local tier = tierConfigs[props.Item.Tier] or tierConfigs[(props.Item.Tier :: string):lower()]
+
+			-- Name, Variation, Tier, and Rate Display
+			local name = cfg.DisplayName
+			local varColor = varcfg.ColorPrimary:ToHex()
+			local varName = varcfg.DisplayName
+			local tierColor = tier.ColorPrimary:ToHex()
+			local tierName = tier.DisplayName
+			local rate = props.Item.Rate
+			--cfg.Rate * (varcfg.Multiplier or 1)
+
+			local text
+			if varcfg.VariationId ~= "none" then
+				text = --
+					([[<font size="32">%s</font>
+<font color="#%s">%s</font> | <font color="#%s">%s</font>
+<font>%s/s</font>]]):format(name, varColor, varName, tierColor, tierName, rate)
+			else
+				text = --
+					([[<font>%s</font>
+<font color="#%s">%s</font>
+<font>%s/s</font>]]):format(name, tierColor, tierName, rate)
+			end
+			tlabel.Text = text
 		end
 		return function() end
 	end, { props.ItemUID, props.SlotNum, props.Rate })

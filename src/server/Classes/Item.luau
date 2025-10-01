@@ -69,8 +69,8 @@ function Item.new(ItemId: string, Player: Player, VariationId: string): Item?
 	local self = setmetatable(table.clone(itemConfig), Item)
 	self.UID = Item.generateUID(Player)
 	self.Rate *= variation.Multiplier
-	self.Variation = variation.DisplayName
-	self.Tier = tier.DisplayName
+	self.Variation = variation.VariationId
+	self.Tier = tier.TierId
 
 	table.insert(PlayerData.Collections[Player].Items, self)
 

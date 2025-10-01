@@ -31,7 +31,7 @@ function PlayerData.new(player: Player)
 		c.Effect = itemConfig.Effect
 	end
 
-	warn(self.ItemSlots)
+	warn(self)
 
 	PlayerData.Owners[self] = player
 	PlayerData.Collections[player] = self

@@ -10,4 +10,5 @@ return {
 	DisplayName = "None",
 	Multiplier = 1,
 	ColorPrimary = Color3.new(0, 0, 0),
+	Weight = 1,
 }

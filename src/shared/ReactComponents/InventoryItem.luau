@@ -74,6 +74,7 @@ local function InventoryItem(props: { isMountedRef: { current: boolean } })
 			BorderSizePixel = 0,
 			Font = "FredokaOne",
 			ZIndex = 4,
+			TextWrapped = true,
 			TextSize = 14,
 			Text = props.Item.DisplayName .. "\n" .. props.Item.Rate .. "/s",
 			TextColor3 = Color3.new(1, 1, 1),
