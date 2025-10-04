@@ -1,51 +1,26 @@
-local TweenService = game:GetService("TweenService")
 local self = {}
+local SpecialEvents = Instance.new("RemoteEvent", game.ReplicatedStorage.Shared.Events)
+SpecialEvents.Name = "SpecialEvents"
+local GetSpecialEvents = Instance.new("RemoteFunction", game.ReplicatedStorage.Shared.Events)
+GetSpecialEvents.Name = "GetSpecialEvents"
 
-self.Changed = Instance.new("BindableEvent")
-self.ChangedRemote = Instance.new("RemoteEvent")
-
-function self.start()
-	self.SecondsPerDay = 5 * 60
-	self.CurrentTime = game.Lighting.ClockTime
-	self.Lights = {}
-	for i, d in ipairs(workspace:GetDescendants()) do
-		if not d:IsA("Light") then
-			continue
-		end
-		table.insert(self.Lights, d)
+function self.initialize()
+	if self.isInitialized then
+		return
 	end
-	self.IsMorning = game.Lighting.ClockTime >= 7 and game.Lighting.ClockTime < 18
-	if self.IsMorning then
-		lightsOff()
+	self.Events = {} :: { [string]: boolean }
+	GetSpecialEvents.OnServerInvoke = function()
+		return self.Events
 	end
-
-	game:GetService("RunService").Heartbeat:Connect(self.TimeIncrement)
+	self.isInitialized = true
 end
-
-function lightsOn()
-	TweenService:Create(game.Lighting, TweenInfo.new(5), { OutdoorAmbient = Color3.new(0.4, 0.3, 1) }):Play()
-	for i, light: Light in ipairs(self.Lights) do
-		light.Enabled = true
-	end
+function self:AddEvent(eventId: string)
+	self.Events[eventId] = true
+	SpecialEvents:FireAllClients(self.Events)
 end
-
-function lightsOff()
-	TweenService:Create(game.Lighting, TweenInfo.new(5), { OutdoorAmbient = Color3.new(1, 0.8, 0.5) }):Play()
-	for i, light: Light in ipairs(self.Lights) do
-		light.Enabled = false
-	end
-end
--- local m = 24
-function self.TimeIncrement(dt)
-	game.Lighting.ClockTime += dt / self.SecondsPerDay * 24
-	-- m += 1
-	if game.Lighting.ClockTime >= 7 and game.Lighting.ClockTime < 18 and not self.IsMorning then
-		lightsOff()
-		self.IsMorning = true
-	elseif game.Lighting.ClockTime >= 18 and self.IsMorning then
-		lightsOn()
-		self.IsMorning = false
-	end
+function self:RemoveEvent(eventId: string)
+	self.Events[eventId] = nil
+	SpecialEvents:FireAllClients(self.Events)
 end
 
 return self

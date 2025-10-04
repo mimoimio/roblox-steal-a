@@ -63,6 +63,7 @@ local function Inventory(props: {
 			LayoutOrder = item.Rate,
 			isMountedRef = props.isMountedRef,
 			InventoryOpen = props.InventoryOpen,
+			Placed = props.PlacedItemUids[item.UID],
 		}, {
 			rounded = e(require(script.Parent.ui.rounded)),
 		})

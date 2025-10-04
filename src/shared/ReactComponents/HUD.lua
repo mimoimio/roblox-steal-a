@@ -1,4 +1,5 @@
 local React = require(game.ReplicatedStorage.Packages.React)
+local SpecialEventsConfig = require(game.ReplicatedStorage.Shared.Configs.SpecialEventsConfig)
 local TS = game:GetService("TweenService")
 
 local function HUD(props)
@@ -7,6 +8,9 @@ local function HUD(props)
 	local PlayerData = props.PlayerData or {}
 	local Resources = PlayerData.Resources or {}
 	local rate, setRate = React.useState(Resources.Rate)
+
+	-- Special events state
+	local specialEvents, setSpecialEvents = React.useState({})
 
 	React.useEffect(function()
 		if hudRef.current then
@@ -25,12 +29,67 @@ local function HUD(props)
 			setRate(resources.Rate)
 		end)
 
+		local SpecialEvents: RemoteEvent = game.ReplicatedStorage.Shared.Events:WaitForChild("SpecialEvents")
+		local seconn = SpecialEvents.OnClientEvent:Connect(function(events)
+			setSpecialEvents(events or {})
+		end)
+
+		-- On first mount, invoke GetSpecialEvents
+		local GetSpecialEvents: RemoteFunction = game.ReplicatedStorage.Shared.Events:WaitForChild("GetSpecialEvents")
+		local ok, events = pcall(function()
+			return GetSpecialEvents:InvokeServer()
+		end)
+		if ok and type(events) == "table" then
+			setSpecialEvents(events)
+		end
+
 		return function()
 			if rupdatec then
 				rupdatec:Disconnect()
 			end
+			if seconn then
+				seconn:Disconnect()
+			end
 		end
 	end, {})
+
+	local eventLabels = {
+		rounded = React.createElement(require(script.Parent.ui.rounded)),
+
+		UIListLayout = React.createElement("UIListLayout", {
+			SortOrder = "LayoutOrder",
+			FillDirection = Enum.FillDirection.Horizontal,
+			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			VerticalAlignment = Enum.VerticalAlignment.Top,
+			HorizontalFlex = "Fill",
+			Padding = UDim.new(0, 10),
+		}),
+	}
+	local eventCount = 0
+	local sevents = ""
+	for eventId, _ in specialEvents do
+		eventCount += 1
+		local seventConfig = SpecialEventsConfig[eventId]
+		sevents ..= "\n" .. ([[<font color="#%s">%s</font>]]):format(
+			seventConfig and seventConfig.ColorPrimary and seventConfig.ColorPrimary:ToHex() or "ffffff",
+			seventConfig and seventConfig.DisplayName or eventId
+		)
+	end
+
+	eventLabels["eventId"] = React.createElement("TextLabel", {
+		Name = "EventLabel",
+		BackgroundTransparency = 1,
+		Font = "FredokaOne",
+		TextSize = 24,
+		RichText = true,
+		TextStrokeTransparency = 0,
+		TextStrokeColor3 = Color3.new(0, 0, 0),
+		Text = sevents:len() > 0 and "Events: " .. sevents or "",
+		-- TextColor3 = Color3.new(1, 0.9, 0.3),
+		AutomaticSize = Enum.AutomaticSize.XY,
+		LayoutOrder = eventCount,
+	})
+
 	return React.createElement("Frame", {
 		Name = "HUD",
 		BackgroundTransparency = 01,
@@ -79,6 +138,19 @@ local function HUD(props)
 					TextSize = 14,
 					Text = "Inventory [E]",
 					Active = false,
+					TextColor3 = Color3.new(1, 1, 1),
+				}),
+				AmountLabel = React.createElement("TextLabel", {
+					Position = UDim2.new(0, 0, 0, 0),
+					Size = UDim2.new(0, 50, 0, 50),
+					AnchorPoint = Vector2.new(0.5, 0.5),
+					BackgroundTransparency = 1,
+					Font = "FredokaOne",
+					TextSize = 14,
+					Text = (props.ItemAmt or 0) .. "/24",
+					Active = false,
+					TextStrokeColor3 = Color3.new(0, 0, 0),
+					TextStrokeTransparency = 0,
 					TextColor3 = Color3.new(1, 1, 1),
 				}),
 			}),
@@ -134,13 +206,6 @@ local function HUD(props)
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 		}, {
-			-- Frame = React.createElement("Frame", {
-			-- 	Position = UDim2.new(0.5, 0, 0, 0),
-			-- 	AnchorPoint = Vector2.new(0.5, 0),
-			-- 	BackgroundTransparency = 0.4,
-			-- 	BorderSizePixel = 0,
-			-- 	LayoutOrder = 1,
-			-- }, {
 			rounded = React.createElement(require(script.Parent.ui.rounded)),
 			TextLabel = React.createElement("TextLabel", {
 				Position = UDim2.new(0.5, 0, 0, -8),
@@ -153,8 +218,16 @@ local function HUD(props)
 				Active = false,
 				TextColor3 = Color3.new(1, 1, 1),
 			}),
-			-- }),
 		}),
+		-- Special event labels (direct children of HUD)
+		TopHud = React.createElement("Frame", {
+			Name = "TopHud",
+			Position = UDim2.new(0.5, 0, 0, 0),
+			Size = UDim2.new(0, 200, 0, 50),
+			AnchorPoint = Vector2.new(0.5, 0),
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+		}, eventLabels),
 	})
 end
 

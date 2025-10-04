@@ -40,6 +40,9 @@ local ItemSold = Instance.new("BindableEvent")
 ItemSold.Name = "ItemSold"
 Item.Sold = ItemSold.Event
 
+local ExceedingLimit = Instance.new("RemoteEvent", game.ReplicatedStorage.Shared.Events)
+ExceedingLimit.Name = "ExceedingLimit"
+
 function Item.generateUID(Player: Player)
 	local UID = ("%014X"):format(tick() * 1e4 + Player.UserId)
 	UID = UID:sub(8, UID:len()) .. "_" .. count()
@@ -59,6 +62,12 @@ function Item:FireSoldEvent(player: Player)
 end
 
 function Item.new(ItemId: string, Player: Player, VariationId: string): Item?
+	if #PlayerData.Collections[Player].Items >= 24 then
+		ExceedingLimit:FireClient(Player)
+		warn("Exceeding limit!")
+		return nil
+	end
+
 	local itemConfig: ItemConfig? = ItemsConfig[ItemId]
 	local variation: VariationConfig = VariationsConfig[VariationId]
 	local tier: TierConfig = TiersConfig[itemConfig.Tier]

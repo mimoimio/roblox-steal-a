@@ -10,5 +10,6 @@ return {
 	TierId = "epic",
 	DisplayName = "Epic",
 	WorthScale = 5,
+	Weight = 120,
 	ColorPrimary = Color3.new(0.5, 0.1, 1),
 }

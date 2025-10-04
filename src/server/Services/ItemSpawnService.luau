@@ -18,6 +18,7 @@ local Alyanum = require(game.ReplicatedStorage.Packages.Alyanum)
 local Item = require(game.ServerScriptService.Server.Classes.Item)
 local GridService = require(script.Parent.GridService)
 local VariationRNGService = require(script.Parent.VariationRNGService)
+local TierRNGService = require(script.Parent.TierRNGService)
 
 local VariationsConfig: { VariationConfig } = require(game.ReplicatedStorage.Shared.Configs.VariationsConfig)
 local TiersConfig: { TierConfig } = require(game.ReplicatedStorage.Shared.Configs.TiersConfig)
@@ -66,6 +67,8 @@ end
 
 local folder = game.ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs"):WaitForChild("ItemsConfig")
 local itemConfigs: { ItemConfig } = {}
+local ICSortedByTiers: { [string]: { ItemConfig } } = {}
+
 local itemConfigById: { [string]: ItemConfig } = {}
 
 for _, child in ipairs(folder:GetChildren()) do
@@ -73,6 +76,14 @@ for _, child in ipairs(folder:GetChildren()) do
 		local config: ItemConfig = require(child)
 		table.insert(itemConfigs, config)
 		itemConfigById[config.ItemId] = config
+	end
+end
+
+for i, itemconfig in itemConfigs do
+	if not ICSortedByTiers[itemconfig.Tier] then
+		ICSortedByTiers[itemconfig.Tier] = { itemconfig }
+	else
+		table.insert(ICSortedByTiers[itemconfig.Tier], itemconfig)
 	end
 end
 
@@ -127,6 +138,19 @@ local function spawnOne(cfg: ItemConfig, varcfg: VariationConfig, position: Vect
 	end
 	namelabel.Text = text
 	safeSetAttributes(model, cfg)
+
+	if varcfg.VariationId == "strange" then
+		local strangelabel: BillboardGui = game.ReplicatedStorage.Shared.StrangeBBGui:Clone()
+		local strangebeam: Part = game.ReplicatedStorage.Shared.strangebeam:Clone()
+		strangelabel.Parent = model.PrimaryPart
+		game.ReplicatedStorage.Shared.Events.StrangeSpawned:FireAllClients()
+		strangebeam:PivotTo(model:GetPivot())
+		strangebeam.Parent = model
+	elseif varcfg.VariationId == "starlight" then
+		local starlightbeam: Part = game.ReplicatedStorage.Shared.starlightbeam:Clone()
+		starlightbeam:PivotTo(model:GetPivot())
+		starlightbeam.Parent = model
+	end
 	model.Parent = container
 	local primary = ensurePrimaryPart(model)
 	if not primary then
@@ -145,20 +169,45 @@ local function spawnOne(cfg: ItemConfig, varcfg: VariationConfig, position: Vect
 	pp.ObjectText = tostring(cfg.DisplayName or itemId)
 	pp.Name = "PickupPrompt"
 
-	-- Track for cleanup on trigger
-	ItemSpawnService.Collections[model] = {
+	-- Track for cleanup on trigger + lifecycle (add spawnTime & destroy task)
+	local lifeMeta = {
 		itemId = itemId,
 		displayName = cfg.DisplayName,
 		position = position,
 		varid = varcfg.VariationId,
+		spawnTime = tick(),
 	}
+	ItemSpawnService.Collections[model] = lifeMeta
+
+	-- Lifespan 30-40s then recycle if still present (not picked up)
+	local lifeSeconds = (4 + math.random()) * 10
+	task.delay(lifeSeconds, function()
+		-- If still in collections (not picked up)
+		if ItemSpawnService.Collections[model] == lifeMeta and model.Parent then
+			-- Return position and remove, then immediately spawn a replacement
+			GridService.InsertPosition(position)
+			ItemSpawnService.Collections[model] = nil
+			model:Destroy()
+			-- Replacement spawn
+			local ICsFromTier
+			repeat
+				ICsFromTier = ICSortedByTiers[TierRNGService:roll().TierId]
+			until ICsFromTier
+			local IC = ICsFromTier[rng:NextInteger(1, #ICsFromTier)]
+
+			spawnOne(IC, VariationRNGService:roll(), GridService.RemoveRandom() or position, container)
+		end
+	end)
 end
 
-function ItemSpawnService.initialize()
+function ItemSpawnService.start()
+	if ItemSpawnService.isStarted then
+		return
+	end
+	ItemSpawnService.isStarted = true
 	-- Container for spawned items
 	local itemsFolder = workspace:FindFirstChild("ItemsFolder") or Instance.new("Folder", workspace)
 	itemsFolder.Name = "ItemsFolder"
-	VariationRNGService.initialize()
 
 	-- setenabled phsyics
 	for i, m: Model in game.ReplicatedStorage.Shared.Models:GetChildren() do
@@ -171,19 +220,23 @@ function ItemSpawnService.initialize()
 	-- Wait for grid to generate some usable positions
 	task.spawn(function()
 		if not GridService.isInitialized then
-			local start = tick()
 			GridService.Initialized:Wait()
-			warn(("GridService initialized in %4.4f"):format(tick() - start))
-		else
-			warn("GridService.isInitialized")
 		end
 
 		for i = 1, 100 do
-			local ic = itemConfigs[rng:NextInteger(1, #itemConfigs)]
+			local t = TierRNGService:roll()
+			local ICsFromTier = ICSortedByTiers[t.TierId]
+
+			if not ICsFromTier then
+				i -= 1
+				continue
+			end
+
+			local IC = ICsFromTier[rng:NextInteger(1, #ICsFromTier)]
 			local tier = TiersConfig[rng:NextInteger(1, #TiersConfig)]
 			local variation = VariationRNGService:roll()
 
-			if not ic or typeof(ic) ~= "table" or not ic.ItemId then
+			if not IC or typeof(IC) ~= "table" or not IC.ItemId then
 				warn("Invalid item config in", itemConfigs)
 				continue
 			end
@@ -199,7 +252,7 @@ function ItemSpawnService.initialize()
 				pos = Vector3.new(math.cos(theta), 0, math.sin(theta)) * 100
 			end
 
-			spawnOne(ic, variation, pos, itemsFolder)
+			spawnOne(IC, variation, pos, itemsFolder)
 		end
 	end)
 
@@ -218,24 +271,27 @@ function ItemSpawnService.initialize()
 		if processing[prompt] then
 			return
 		end
+		local ActionText = prompt.ActionText
 		processing[prompt] = true
 		prompt.Enabled = false
 		prompt.ActionText = "Picking up..."
 
-		Item.new(meta.itemId, player, meta.varid)
-		GridService.InsertPosition(meta.position)
-		ItemSpawnService.Collections[model] = nil
-		model:Destroy()
-		processing[prompt] = nil
-		-- spawnOne(itemConfigById[meta.itemId], GridService.RemoveRandom(), itemsFolder)
-		spawnOne(
-			itemConfigs[rng:NextInteger(1, #itemConfigs)],
-			VariationRNGService:roll(),
-			GridService.RemoveRandom(),
-			itemsFolder
-		)
+		local success: Item = Item.new(meta.itemId, player, meta.varid)
+		if success then
+			GridService.InsertPosition(meta.position)
+			ItemSpawnService.Collections[model] = nil
+			model:Destroy()
+			processing[prompt] = nil
+		else
+			processing[prompt] = nil
+			prompt.Enabled = true
+			prompt.ActionText = ActionText
+		end
 	end)
 end
 
 return ItemSpawnService
--- return { initialize = function() end }
+-- return { start = function() end }
+--[[
+This module uses randomly chosen between
+]]

@@ -11,5 +11,6 @@ return {
 	TierId = "rare",
 	DisplayName = "Rare",
 	WorthScale = 3,
+	Weight = 70,
 	ColorPrimary = Color3.new(0.8, 0.4, 0.55),
 }

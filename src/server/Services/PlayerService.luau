@@ -3,6 +3,10 @@ local PlayerDataService = require(game.ServerScriptService.Server.Services.Playe
 local PlayerService = {}
 
 function PlayerService.initialize()
+	if PlayerService.isInitialized then
+		return
+	end
+	PlayerService.isInitialized = true
 	game:GetService("Players").PlayerAdded:Connect(function(player)
 		-- initalizing PlayerData
 		PlayerData.new(player)

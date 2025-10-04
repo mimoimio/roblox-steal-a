@@ -26,6 +26,7 @@ type Item = {
 	Rate: number,
 }
 
+local useToast = require(script.Parent.Toasts).useToast
 local Inventory = require(script.Parent.Inventory)
 local Settings = require(script.Parent.Settings)
 local PlaceItem = require(script.Parent.PlaceItem)
@@ -44,10 +45,14 @@ function fetchPlayerData()
 	local PlayerData = GetPlayerData:InvokeServer()
 	return PlayerData
 end
+local ItemDict: { [string]: Item } = {}
 
 local function Main(props)
+	local toast = useToast()
 	local items: { Item }, setItems = useState({})
 	local activePanel, setActivePanel = React.useState("none" :: Panel)
+	local strictPanel, setStrictPanel = useState("none" :: Panel)
+	local strictPanelRef = useRef("none")
 	local placeSlot: Slot?, setPlaceSlot = useState(nil)
 
 	local submitRef = useRef()
@@ -63,6 +68,10 @@ local function Main(props)
 	-- Toggle helpers
 	local function toggle(panel: Panel)
 		setActivePanel(function(prev: Panel)
+			warn("Setting active panel. strictPanel:", strictPanelRef.current)
+			if strictPanelRef.current ~= "none" then
+				return strictPanelRef.current
+			end
 			if prev == panel then
 				return "none"
 			else
@@ -70,6 +79,27 @@ local function Main(props)
 			end
 		end)
 	end
+
+	local function toggleStrictPanel(spanel: Panel)
+		setStrictPanel(function(prev)
+			local newpanel
+			if prev == spanel then
+				newpanel = "none"
+			else
+				newpanel = spanel
+			end
+			setActivePanel(newpanel)
+			return newpanel
+		end)
+	end
+
+	useEffect(function()
+		warn("strictpanel", strictPanel)
+		strictPanelRef.current = strictPanel
+	end, { strictPanel })
+	useEffect(function()
+		warn("activePanel", activePanel)
+	end, { activePanel })
 
 	--[[ MOUNT HANDLER ]]
 	React.useEffect(function()
@@ -104,6 +134,26 @@ local function Main(props)
 				setPlayerData(function(prev: PlayerData)
 					local new = table.clone(prev)
 					new.Items = fetchedItems
+
+					local newItemDict = {}
+					for i, newItem in fetchedItems do
+						ItemDict[newItem.UID] = newItem
+						newItemDict[newItem.UID] = newItem
+					end
+
+					local removedCount = 0
+
+					for uid, item in ItemDict do
+						if not newItemDict[uid] then
+							ItemDict[uid] = nil
+							removedCount += 1
+						end
+					end
+
+					if removedCount > 0 then
+						toast.open("Removed " .. removedCount .. " items", 3, Color3.new(1, 0, 0))
+					end
+
 					return new
 				end)
 				setItems(fetchedItems)
@@ -122,8 +172,10 @@ local function Main(props)
 			end),
 			--[[ SELL ITEM PROMPT EVENT ================================]]
 			sellitemconneciton = SellItemsEvent.OnClientEvent:Connect(function()
-				toggle("sellitem")
+				toggleStrictPanel("sellitem")
+				-- toggle("sellitem")
 			end),
+
 			--[[ ITEM SLOTS CHANGED EVENT ================================]]
 			itemslotschanged = ItemSlotsUpdate.OnClientEvent:Connect(function(ItemSlots: { [string]: string })
 				setPlayerData(function(prev: PlayerData)
@@ -132,12 +184,77 @@ local function Main(props)
 					return clone
 				end)
 			end),
+
+			--[[ STRANGE SPAWNED EVENT ]]
+			strange = Events:WaitForChild("StrangeSpawned").OnClientEvent:Connect(function()
+				toast.open("Strange Item Spawned!", 8, Color3.new(0.9, 0.4, 0))
+				local sound: Sound = game.ReplicatedStorage.Shared.SFX:FindFirstChild("BassEcho")
+				if sound then
+					task.spawn(function()
+						sound = sound:Clone()
+						sound.Parent = game.Players.LocalPlayer
+						if not sound.IsLoaded then
+							sound.Loaded:Wait()
+						end
+						sound:Play()
+						sound.Ended:Wait()
+						sound:Destroy()
+					end)
+				end
+				local sound2 = game.ReplicatedStorage.Shared.SFX:FindFirstChild("Bass")
+				if sound2 then
+					task.spawn(function()
+						sound2 = sound2:Clone()
+						sound2.Parent = game.Players.LocalPlayer
+						if not sound2.IsLoaded then
+							sound2.Loaded:Wait()
+						end
+						sound2:Play()
+						sound2.Ended:Wait()
+						sound2:Destroy()
+					end)
+				end
+				local sound3 = game.ReplicatedStorage.Shared.SFX:FindFirstChild("Bass2")
+				if sound3 then
+					task.spawn(function()
+						sound3 = sound3:Clone()
+						sound3.Parent = game.Players.LocalPlayer
+						if not sound3.IsLoaded then
+							sound3.Loaded:Wait()
+						end
+						sound3:Play()
+						sound3.Ended:Wait()
+						sound3:Destroy()
+					end)
+				end
+			end),
+
+			--[[ EXCEEDING ITEM LIMIT ]]
+			exceed = Events:WaitForChild("ExceedingLimit").OnClientEvent:Connect(function()
+				toast.open("Exceeding Item Limit! Sell current items first!", 5, Color3.new(1, 0.4, 0.4))
+				local sound: Sound = game.ReplicatedStorage.Shared.SFX:FindFirstChild("Error")
+				if sound then
+					task.spawn(function()
+						sound = sound:Clone()
+						sound.Parent = game.Players.LocalPlayer
+						if not sound.IsLoaded then
+							sound.Loaded:Wait()
+						end
+						sound:Play()
+						sound.Ended:Wait()
+						sound:Destroy()
+					end)
+				end
+			end),
 		}
 
 		--[[ INITIALIZING ITEMS ================================]]
 		local fetchedItems: { Item }? = GetItems:InvokeServer()
 		assert(fetchedItems, "FAILED TO GET ITEMS")
 		setItems(fetchedItems)
+		for i, item in fetchedItems do
+			ItemDict[item.UID] = item
+		end
 
 		isMountedRef.current = true
 		return function()
@@ -148,6 +265,7 @@ local function Main(props)
 		end
 	end, {})
 
+	--[[ Rarely used panels]]
 	local Panel = PlaceItemOpen
 			and e(PlaceItem, {
 				Items = items,
@@ -182,7 +300,7 @@ local function Main(props)
 				Items = items,
 				SellItemOpen = SellItemOpen,
 				close = function()
-					setActivePanel("none")
+					toggleStrictPanel("sellitem")
 				end,
 				sell = function(selectedItems: { string })
 					(game.ReplicatedStorage.Shared.Events.SellItems :: RemoteEvent):FireServer(selectedItems)
@@ -203,11 +321,11 @@ local function Main(props)
 		Position = UDim2.new(0, 0, 0, 0),
 		ZIndex = 1,
 	}, {
-		CutsceneController = React.createElement(CutsceneController, {
-			OnCutsceneStart = function()
-				setActivePanel("none")
-			end,
-		}),
+		-- CutsceneController = React.createElement(CutsceneController, {
+		-- 	OnCutsceneStart = function()
+		-- 		setActivePanel("none")
+		-- 	end,
+		-- }),
 		Music = e(Music, {
 			MusicOpen = MusicOpen,
 			PlayerData = PlayerData,
@@ -222,9 +340,17 @@ local function Main(props)
 			close = function()
 				toggle("inventory")
 			end,
+			PlacedItemUids = PlayerData.ItemSlots and (function()
+				local PlacedItemUids = {}
+				for slot, itemuid in PlayerData.ItemSlots do
+					PlacedItemUids[itemuid] = true
+				end
+				return PlacedItemUids
+			end)() or {},
 		}),
 		HUD = e(HUD, {
 			PlayerData = PlayerData,
+			ItemAmt = #PlayerData.Items,
 			OnInventoryButtonClick = function()
 				toggle("inventory")
 			end,

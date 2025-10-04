@@ -18,11 +18,14 @@ GetPlayerData.Name = "GetPlayerData"
 local ResourcesUpdated = Instance.new("RemoteEvent", game.ReplicatedStorage.Shared.Events)
 ResourcesUpdated.Name = "ResourcesUpdated"
 
-function RemoteEventsService.initialize()
-	CreateItem.OnServerEvent:Connect(function(player, ItemId)
-		Item.new(ItemId, player)
-	end)
+local StrangeSpawned = Instance.new("RemoteEvent", game.ReplicatedStorage.Shared.Events)
+StrangeSpawned.Name = "StrangeSpawned"
 
+function RemoteEventsService.initialize()
+	if RemoteEventsService.isInitialized then
+		return
+	end
+	RemoteEventsService.isInitialized = true
 	GetPlayerData.OnServerInvoke = function(player)
 		return PlayerData.Collections[player]
 	end

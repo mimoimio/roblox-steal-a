@@ -265,7 +265,53 @@ local function Tycoon(props: TycoonProps)
 
 	local itemSlots: ItemSlots, setItemSlots = useState(props.ItemSlots)
 	local items: { Item }, setItems = useState(props.Items)
+	useEffect(function()
+		local plot = props.Plot
+		local player = props.Player
+		if not plot or not player then
+			return
+		end
 
+		local ownerBoard = plot:FindFirstChild("OwnerBoard")
+		if not ownerBoard or not ownerBoard:IsA("Part") then
+			return
+		end
+		local BaseLightAtt: Attachment = game.ReplicatedStorage.Shared:WaitForChild("BaseLightAtt"):Clone()
+		BaseLightAtt.Parent = plot.PrimaryPart
+		-- Create SurfaceGui
+		local surfaceGui = Instance.new("SurfaceGui")
+		surfaceGui.Name = "OwnerSurfaceGui"
+		surfaceGui.Adornee = ownerBoard
+		surfaceGui.Face = Enum.NormalId.Front
+		-- surfaceGui.AlwaysOnTop = true
+		surfaceGui.Parent = ownerBoard
+
+		-- Create ImageLabel
+		local imageLabel = Instance.new("ImageLabel")
+		imageLabel.Size = UDim2.new(1, 0, 1, 0)
+		imageLabel.BackgroundTransparency = 1
+		imageLabel.Parent = surfaceGui
+
+		-- Create TextLabel
+		local TextLabel = Instance.new("TextLabel")
+		TextLabel.Size = UDim2.new(1, 0, 1, 0)
+		TextLabel.BackgroundTransparency = 1
+		TextLabel.Text = player.Name
+		TextLabel.TextSize = 100
+		TextLabel.Parent = surfaceGui
+		TextLabel.ZIndex = 3
+
+		-- Get player thumbnail
+		local Players = game:GetService("Players")
+		local thumbType = Enum.ThumbnailType.HeadShot
+		local thumbSize = Enum.ThumbnailSize.Size420x420
+		local thumbUrl, _ = Players:GetUserThumbnailAsync(player.UserId, thumbType, thumbSize)
+		imageLabel.Image = thumbUrl
+
+		return function()
+			surfaceGui:Destroy()
+		end
+	end, { props.Plot, props.Player })
 	useEffect(function()
 		while not Item.Created or not Item.Deleted do
 			warn("not Item.Created or not Item.Deleted ", Item)
@@ -519,40 +565,6 @@ local function TycoonApp(props)
 			createTycoon(Player)
 		end
 
-		-- handling place operation
-		-- local PlaceItem: RemoteEvent = game.ReplicatedStorage.Shared.Events.PlaceItem
-		-- PlaceItem.OnServerEvent:Connect(function(player: Player, slotNum: Slot?, uid: string?)
-		-- 	local tycoon: TycoonProps = tycoons[player]
-		-- 	local pd: PlayerData = PlayerData.Collections[player]
-
-		-- 	-- only request with slotNum
-		-- 	if not slotNum then
-		-- 		return
-		-- 	end
-
-		-- 	-- only request with uid
-		-- 	if not uid then
-		-- 		return
-		-- 	end
-
-		-- 	-- only item that's valid
-		-- 	local itemFromUID = pd:GetItemFromUID(uid)
-		-- 	if not itemFromUID then
-		-- 		return
-		-- 	end
-
-		-- 	-- only one item amongst all tycoon's slot
-		-- 	for sn, id in pd.ItemSlots do
-		-- 		if id == uid then
-		-- 			pd.ItemSlots[sn] = "none"
-		-- 		end
-		-- 		if sn == slotNum then
-		-- 			pd.ItemSlots[sn] = uid
-		-- 		end
-		-- 	end
-
-		-- end)
-
 		return function()
 			if pAddedCon then
 				pAddedCon:Disconnect()
@@ -585,6 +597,10 @@ end
 --[[======================================================================================================================================================================================================]]
 
 function TycoonService.initialize()
+	if TycoonService.isInitialized then
+		return
+	end
+	TycoonService.isInitialized = true
 	local rootFolder = Instance.new("Folder", workspace)
 	rootFolder.Name = "rootFolder"
 
@@ -609,58 +625,4 @@ ITEM EFFECT TYPES: "GROWTH" or "DISCARD" or "ENTRY"
 
 fn(tycoon) -> effect
 ======================================================================================================================================================================================================
-]]
---[[
-
-
-local function HeldItem(props: { Player: Player, Item: Item })
-	local ref = useRef()
-	local cloneRef = useRef()
-	local player = props.Player
-
-	-- mount-only (the identifier)
-	useEffect(function()
-		local node = ref.current
-		if not node then
-			return
-		end
-
-		local item: Item = PlayerData.Collections[player]:GetItemFromUID(props.Item.UID)
-		local model: Model = game.ReplicatedStorage.Shared.Models:FindFirstChild(item.ItemId):Clone()
-		model.PrimaryPart.Anchored = false
-
-		local clone: Tool = Instance.new("Tool")
-		model.Parent = clone
-		cloneRef.current = clone
-
-		clone.Name = props.Item.DisplayName
-		clone.Enabled = true
-
-		local Handle = Instance.new("Part", clone)
-		Handle.Name = "Handle"
-		Handle.Size = Vector3.one
-		Handle:PivotTo(model:GetPivot())
-
-		local weld = Instance.new("WeldConstraint", Handle)
-		weld.Part0 = Handle
-		weld.Part1 = model.PrimaryPart
-
-		clone.PrimaryPart = Handle
-		task.spawn(function()
-			local char = player.Character or player.CharacterAdded:Wait()
-			clone.Parent = player.Backpack
-		end)
-		-- warn(clone, clone.Parent, player.Backpack)
-
-		return function()
-			if cloneRef.current then
-				cloneRef.current:Destroy()
-				cloneRef.current = nil
-			end
-		end
-	end, { props.Item.UID })
-
-	return e("Folder", { Name = props.Item.ItemId, ref = ref })
-end
-
 ]]

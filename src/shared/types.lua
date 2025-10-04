@@ -49,4 +49,9 @@ export type TierConfig = {
 	WorthScale: number,
 }
 
+export type SharedTypes = {
+	Services: {},
+	Classes: {},
+}
+
 return {}

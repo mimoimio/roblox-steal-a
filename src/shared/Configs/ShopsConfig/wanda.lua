@@ -5,4 +5,8 @@ return {
 		"Hello!",
 		"See ya later!",
 	},
+	ItemsSold = {
+		"dinosaur",
+		"radiooze",
+	},
 }

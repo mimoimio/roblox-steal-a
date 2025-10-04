@@ -10,5 +10,6 @@ return {
 	TierId = "common",
 	DisplayName = "Common",
 	WorthScale = 1,
+	Weight = 10,
 	ColorPrimary = Color3.new(1, 1, 1),
 }

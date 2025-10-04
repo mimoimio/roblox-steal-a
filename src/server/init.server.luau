@@ -1,11 +1,14 @@
 local Events = game.ReplicatedStorage.Shared:WaitForChild("Events")
 
--- local AddItem = Instance.new("RemoteEvent", Events)
--- AddItem.Name = "AddItem"
--- local RemoveItem = Instance.new("RemoteEvent", Events)
--- RemoveItem.Name = "RemoveItem"
--- local RemoveFirst = Instance.new("RemoteEvent", Events)
--- RemoveFirst.Name = "RemoveFirst"
+local AddItem = Instance.new("RemoteEvent", Events)
+AddItem.Name = "AddItem"
+
+local RemoveItem = Instance.new("RemoteEvent", Events)
+RemoveItem.Name = "RemoveItem"
+
+local RemoveFirst = Instance.new("RemoteEvent", Events)
+RemoveFirst.Name = "RemoveFirst"
+
 local PlaceItem = Instance.new("RemoteEvent", Events)
 PlaceItem.Name = "PlaceItem"
 
@@ -15,27 +18,27 @@ SellItems.Name = "SellItems"
 local ItemSlotsUpdate = Instance.new("RemoteEvent", Events)
 ItemSlotsUpdate.Name = "ItemSlotsUpdate"
 
--- local ItemRenderService = require(script.Services.ItemRenderService)
--- ItemRenderService.new(workspace.Part, AddItem, RemoveItem, RemoveFirst)
+local ServerTypes = require(script.ServerTypes)
+type Service = ServerTypes.Service
+local shared: { Services: { Service } } = ServerTypes
+-- Initialization phase
+for _, service in shared.Services do
+	if service.initialize then
+		warn("Initializing service:", _, service)
+		local ok, err = pcall(service.initialize, service)
+		if not ok then
+			warn("Error initializing service:", err)
+		end
+	end
+end
 
-local PlayerService = require(script.Services.PlayerService)
-PlayerService.initialize()
-
-local RemoteEventsService = require(script.Services.RemoteEventsService)
-RemoteEventsService.initialize()
-
-local TycoonService = require(script.Services.TycoonService)
-TycoonService.initialize()
-
-local GridService = require(script.Services.GridService)
-GridService.initialize()
-
-local TreeSpawnService = require(script.Services.TreeSpawnService)
-TreeSpawnService.initialize()
-
-local ItemSpawnService = require(script.Services.ItemSpawnService)
-ItemSpawnService.initialize()
-
-local Clock = require(script.Services.Clock)
--- Clock.initialize()
-Clock.start()
+-- Start phase
+for _, service in shared.Services do
+	if service.start then
+		warn("Starting service:", _, service)
+		local ok, err = pcall(service.start, service)
+		if not ok then
+			warn("Error starting service:", err)
+		end
+	end
+end

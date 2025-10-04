@@ -10,7 +10,7 @@ function self.start()
 	if started then
 		return
 	end
-	self.SecondsPerDay = 3 * 60
+	self.SecondsPerDay = 1 * 30
 	self.CurrentTime = game.Lighting.ClockTime
 	self.Lights = {}
 	for i, d in ipairs(workspace:GetDescendants()) do
