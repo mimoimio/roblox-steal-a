@@ -48,5 +48,6 @@ Sells common to uncommon with unlikely occurrence of rare and epic tier
 - is like normal shop, you go here everyday
 - potions have main effects, and side effects
 - 
+
 ---
 # Here's a guideline. Make the player think about choices. Decision making. More pivotal choices. Sinks and Taps

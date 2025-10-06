@@ -83,6 +83,7 @@ local function HUD(props)
 		TextSize = 24,
 		RichText = true,
 		TextStrokeTransparency = 0,
+		TextColor3 = Color3.new(1, 1, 1),
 		TextStrokeColor3 = Color3.new(0, 0, 0),
 		Text = sevents:len() > 0 and "Events: " .. sevents or "",
 		-- TextColor3 = Color3.new(1, 0.9, 0.3),

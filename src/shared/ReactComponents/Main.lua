@@ -32,6 +32,7 @@ local Settings = require(script.Parent.Settings)
 local PlaceItem = require(script.Parent.PlaceItem)
 local SellItem = require(script.Parent.SellItem)
 local HUD = require(script.Parent.HUD)
+local MainShop = require(script.Parent.MainShopGui)
 local Music = require(script.Parent.Music)
 local Mustard = require(script.Parent.Mustard)
 local CutsceneController = require(script.Parent.CutsceneController)
@@ -61,6 +62,7 @@ local function Main(props)
 	local isMountedRef = useRef()
 	local PlaceItemOpen = activePanel == "placeitem"
 	local SellItemOpen = activePanel == "sellitem"
+	local MainShopOpen = activePanel == "mainshop"
 	local SettingsOpen = activePanel == "settings"
 	local InventoryOpen = activePanel == "inventory"
 	local MusicOpen = activePanel == "music"
@@ -110,6 +112,7 @@ local function Main(props)
 		local ItemSlotsUpdate: RemoteEvent = Events:WaitForChild("ItemSlotsUpdate")
 		local PlaceItemEvent: RemoteEvent = Events:WaitForChild("PlaceItem")
 		local SellItemsEvent: RemoteEvent = Events:WaitForChild("SellItems")
+		local MainShopEvent: RemoteEvent = Events:WaitForChild("MainShop")
 
 		local connections = {
 			--[[ KEYBINDS ================================]]
@@ -174,6 +177,10 @@ local function Main(props)
 			sellitemconneciton = SellItemsEvent.OnClientEvent:Connect(function()
 				toggleStrictPanel("sellitem")
 				-- toggle("sellitem")
+			end),
+			mainshopconneciton = MainShopEvent.OnClientEvent:Connect(function()
+				toggleStrictPanel("mainshop")
+				-- toggle("mainshop")
 			end),
 
 			--[[ ITEM SLOTS CHANGED EVENT ================================]]
@@ -291,6 +298,12 @@ local function Main(props)
 					setActivePanel("none")
 				end,
 			})
+		or MainShopOpen and e(MainShop, {
+			MainShopOpen = MainShopOpen,
+			close = function()
+				toggleStrictPanel("mainshop")
+			end,
+		})
 		or SettingsOpen and e(Settings, {
 			SettingsOpen = SettingsOpen,
 			PlayerData = PlayerData,
@@ -340,7 +353,7 @@ local function Main(props)
 			close = function()
 				toggle("inventory")
 			end,
-			PlacedItemUids = PlayerData.ItemSlots and (function()
+			PlacedItemUids = PlayerData and PlayerData.ItemSlots and (function()
 				local PlacedItemUids = {}
 				for slot, itemuid in PlayerData.ItemSlots do
 					PlacedItemUids[itemuid] = true
