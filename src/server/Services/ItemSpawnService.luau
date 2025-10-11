@@ -8,8 +8,6 @@ type VariationConfig = sharedtypes.VariationConfig
 type TierConfig = sharedtypes.TierConfig
 type PlayerData = sharedtypes.PlayerData
 
--- Registry of spawned item models to their metadata
--- [Model] = { itemId: string, displayName: string?, position: Vector3 }
 ItemSpawnService.Collections = {}
 
 local ProximityPromptService = game:GetService("ProximityPromptService")
@@ -17,6 +15,7 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local Alyanum = require(game.ReplicatedStorage.Packages.Alyanum)
 local Item = require(game.ServerScriptService.Server.Classes.Item)
 local GridService = require(script.Parent.GridService)
+local FormatItemLabelText = require(game.ReplicatedStorage.Shared.Utils.Format).FormatItemLabelText
 local VariationRNGService = require(script.Parent.VariationRNGService)
 local TierRNGService = require(script.Parent.TierRNGService)
 
@@ -80,10 +79,10 @@ for _, child in ipairs(folder:GetChildren()) do
 end
 
 for i, itemconfig in itemConfigs do
-	if not ICSortedByTiers[itemconfig.Tier] then
-		ICSortedByTiers[itemconfig.Tier] = { itemconfig }
+	if not ICSortedByTiers[itemconfig.TierId] then
+		ICSortedByTiers[itemconfig.TierId] = { itemconfig }
 	else
-		table.insert(ICSortedByTiers[itemconfig.Tier], itemconfig)
+		table.insert(ICSortedByTiers[itemconfig.TierId], itemconfig)
 	end
 end
 
@@ -112,31 +111,16 @@ local function spawnOne(cfg: ItemConfig, varcfg: VariationConfig, position: Vect
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
 	end
 
-	-- Tier Display
-	local tier = TiersConfig[cfg.Tier]
-
 	-- Name, Variation, Tier, and Rate Display
 	local namelabel: TextLabel = model.PrimaryPart.BillboardGui:FindFirstChild("TextLabel")
-	local name = cfg.DisplayName
-	local varColor = varcfg.ColorPrimary:ToHex()
-	local varName = varcfg.DisplayName
-	local tierColor = tier.ColorPrimary:ToHex()
-	local tierName = tier.DisplayName
-	local rate = cfg.Rate * (varcfg.Multiplier or 1)
-
-	local text
-	if varcfg.VariationId ~= "none" then
-		text = --
-			([[<font size="48">%s</font>
-<font color="#%s">%s</font> | <font color="#%s">%s</font>
-<font>%s/s</font>]]):format(name, varColor, varName, tierColor, tierName, rate)
-	else
-		text = --
-			([[<font>%s</font>
-<font color="#%s">%s</font>
-<font>%s/s</font>]]):format(name, tierColor, tierName, rate)
-	end
+	local text = FormatItemLabelText({
+		ItemId = cfg.ItemId,
+		TierId = cfg.TierId,
+		VariationId = varcfg.VariationId,
+		Rate = cfg.Rate * varcfg.Multiplier,
+	})
 	namelabel.Text = text
+
 	safeSetAttributes(model, cfg)
 
 	if varcfg.VariationId == "strange" then
@@ -151,6 +135,7 @@ local function spawnOne(cfg: ItemConfig, varcfg: VariationConfig, position: Vect
 		starlightbeam:PivotTo(model:GetPivot())
 		starlightbeam.Parent = model
 	end
+
 	model.Parent = container
 	local primary = ensurePrimaryPart(model)
 	if not primary then
@@ -195,103 +180,135 @@ local function spawnOne(cfg: ItemConfig, varcfg: VariationConfig, position: Vect
 			until ICsFromTier
 			local IC = ICsFromTier[rng:NextInteger(1, #ICsFromTier)]
 
-			spawnOne(IC, VariationRNGService:roll(), GridService.RemoveRandom() or position, container)
+			spawnOne(IC, VariationRNGService:roll(IC.Variations), GridService.RemoveRandom() or position, container)
 		end
 	end)
 end
 
+-- function ItemSpawnService.start()
+-- 	if ItemSpawnService.isStarted then
+-- 		return
+-- 	end
+-- 	ItemSpawnService.isStarted = true
+-- 	-- Container for spawned items
+-- 	local itemsFolder = workspace:FindFirstChild("ItemsFolder") or Instance.new("Folder", workspace)
+-- 	itemsFolder.Name = "ItemsFolder"
+
+-- 	-- setenabled phsyics
+-- 	for i, m: Model in game.ReplicatedStorage.Shared.Models:GetChildren() do
+-- 		local humanoid: Humanoid = m:FindFirstChild("Humanoid")
+-- 		if humanoid then
+-- 			humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+-- 		end
+-- 	end
+
+-- 	-- Wait for grid to generate some usable positions
+-- 	task.spawn(function()
+-- 		if not GridService.isInitialized then
+-- 			GridService.Initialized:Wait()
+-- 		end
+
+-- 		for i = 1, 150 do
+-- 			local t = TierRNGService:roll()
+-- 			local ICsFromTier = ICSortedByTiers[t.TierId]
+
+-- 			if not ICsFromTier then
+-- 				i -= 1
+-- 				continue
+-- 			end
+
+-- 			local IC = ICsFromTier[rng:NextInteger(1, #ICsFromTier)]
+-- 			local tier = TiersConfig[rng:NextInteger(1, #TiersConfig)]
+-- 			local variation = VariationRNGService:roll(IC.Variations)
+
+-- 			if not IC or typeof(IC) ~= "table" or not IC.ItemId then
+-- 				warn("Invalid item config in", itemConfigs)
+-- 				continue
+-- 			end
+
+-- 			local pos: Vector3? = nil
+-- 			if #GridService.Positions > 0 then
+-- 				pos = GridService.RemoveRandom()
+-- 			end
+
+-- 			if not pos then
+-- 				-- If grid ran out, synthesize a simple position spread
+-- 				local theta = (i / 100) * math.pi * 2
+-- 				pos = Vector3.new(math.cos(theta), 0, math.sin(theta)) * 100
+-- 			end
+
+-- 			spawnOne(IC, variation, pos, itemsFolder)
+-- 		end
+-- 	end)
+
+-- 	local processing = {}
+-- 	-- Single global handler for all prompts we create
+-- 	ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt, player: Player)
+-- 		local model = prompt:FindFirstAncestorOfClass("Model")
+-- 		if not model then
+-- 			return
+-- 		end
+-- 		local meta = ItemSpawnService.Collections[model]
+-- 		if not meta then
+-- 			return -- not ours
+-- 		end
+
+-- 		if processing[prompt] then
+-- 			return
+-- 		end
+-- 		local ActionText = prompt.ActionText
+-- 		processing[prompt] = true
+-- 		prompt.Enabled = false
+-- 		prompt.ActionText = "Picking up..."
+
+-- 		local success: Item = Item.new(meta.itemId, player, meta.varid)
+-- 		if success then
+-- 			GridService.InsertPosition(meta.position)
+-- 			ItemSpawnService.Collections[model] = nil
+-- 			model:Destroy()
+-- 			processing[prompt] = nil
+-- 		else
+-- 			processing[prompt] = nil
+-- 			prompt.Enabled = true
+-- 			prompt.ActionText = ActionText
+-- 		end
+-- 	end)
+-- end
+
 function ItemSpawnService.start()
-	if ItemSpawnService.isStarted then
-		return
+	for i, itemconfig in itemConfigs do
+		local model: Model = game.ReplicatedStorage.Shared.Models:FindFirstChild(itemconfig.ItemId):Clone()
+		model.Parent = workspace
+		model:PivotTo(CFrame.new(i * 5, 10, 10))
+		local pp = Instance.new("ProximityPrompt", model)
+		task.delay(1, function()
+			model.PrimaryPart.Anchored = true
+		end)
+		pp.Triggered:Connect(function(playerWhoTriggered)
+			Item.new(itemconfig.ItemId, playerWhoTriggered)
+		end)
 	end
-	ItemSpawnService.isStarted = true
-	-- Container for spawned items
-	local itemsFolder = workspace:FindFirstChild("ItemsFolder") or Instance.new("Folder", workspace)
-	itemsFolder.Name = "ItemsFolder"
-
-	-- setenabled phsyics
-	for i, m: Model in game.ReplicatedStorage.Shared.Models:GetChildren() do
-		local humanoid: Humanoid = m:FindFirstChild("Humanoid")
-		if humanoid then
-			humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-		end
-	end
-
-	-- Wait for grid to generate some usable positions
-	task.spawn(function()
-		if not GridService.isInitialized then
-			GridService.Initialized:Wait()
-		end
-
-		for i = 1, 100 do
-			local t = TierRNGService:roll()
-			local ICsFromTier = ICSortedByTiers[t.TierId]
-
-			if not ICsFromTier then
-				i -= 1
-				continue
-			end
-
-			local IC = ICsFromTier[rng:NextInteger(1, #ICsFromTier)]
-			local tier = TiersConfig[rng:NextInteger(1, #TiersConfig)]
-			local variation = VariationRNGService:roll()
-
-			if not IC or typeof(IC) ~= "table" or not IC.ItemId then
-				warn("Invalid item config in", itemConfigs)
-				continue
-			end
-
-			local pos: Vector3? = nil
-			if #GridService.Positions > 0 then
-				pos = GridService.RemoveRandom()
-			end
-
-			if not pos then
-				-- If grid ran out, synthesize a simple position spread
-				local theta = (i / 100) * math.pi * 2
-				pos = Vector3.new(math.cos(theta), 0, math.sin(theta)) * 100
-			end
-
-			spawnOne(IC, variation, pos, itemsFolder)
-		end
-	end)
-
-	local processing = {}
-	-- Single global handler for all prompts we create
-	ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt, player: Player)
-		local model = prompt:FindFirstAncestorOfClass("Model")
-		if not model then
-			return
-		end
-		local meta = ItemSpawnService.Collections[model]
-		if not meta then
-			return -- not ours
-		end
-
-		if processing[prompt] then
-			return
-		end
-		local ActionText = prompt.ActionText
-		processing[prompt] = true
-		prompt.Enabled = false
-		prompt.ActionText = "Picking up..."
-
-		local success: Item = Item.new(meta.itemId, player, meta.varid)
-		if success then
-			GridService.InsertPosition(meta.position)
-			ItemSpawnService.Collections[model] = nil
-			model:Destroy()
-			processing[prompt] = nil
-		else
-			processing[prompt] = nil
-			prompt.Enabled = true
-			prompt.ActionText = ActionText
-		end
-	end)
 end
 
 return ItemSpawnService
--- return { start = function() end }
 --[[
-This module uses randomly chosen between
+
+	IngredientSpawnService, actually.
+	Uses VariationRNGService and TierRNGService to randomly spawn ingredients.
+	Picked up ingredients can be
+	- Placed
+	- Merged
+	- Permenantly remove
+
+	You have your core Generator.
+	You either
+	MERGE the generator with materials (items), immediately adds the rate Once to your core, or
+	PLACE the ingredients in the collectors slot, adding money every second
+	ABSTRACT the ingredients, add life spans to a placed collector, delaying it's expiration
+
+	Item may have side effects. Types:
+	- Entry: 		takes effect after FIRST placed.
+	- Merged: 		after merging
+	- Removed: 		after Removed
+
 ]]

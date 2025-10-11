@@ -99,7 +99,7 @@ local function PlaceItem(props: {
 		end
 	end, { props.PlaceItemOpen })
 	-- warn("children", children)
-	return e("Frame", {
+	return e("ImageLabel", {
 		Size = UDim2.new(1, 0, 1, 0),
 		Position = CLOSED_POS,
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -111,7 +111,23 @@ local function PlaceItem(props: {
 		ref = FrameRef,
 		ClipsDescendants = false,
 		ZIndex = 1,
+		Image = "rbxassetid://136242854116857",
+		ScaleType = Enum.ScaleType.Slice,
+		SliceCenter = Rect.new(30, 30, 90, 90),
 	}, {
+		UIGradient = e("UIGradient", {
+			Color = ColorSequence.new(
+				Color3.new(0.564705, 0.501960, 0.592156),
+				Color3.new(0.945098, 0.972549, 0.874509)
+			),
+			Rotation = 90,
+		}),
+		UIPadding = e("UIPadding", {
+			PaddingTop = UDim.new(0, 30),
+			PaddingRight = UDim.new(0, 30),
+			PaddingLeft = UDim.new(0, 30),
+			PaddingBottom = UDim.new(0, 30),
+		}),
 		ScrollingFrame = e("ScrollingFrame", {
 			ScrollingDirection = Enum.ScrollingDirection.Y,
 			Size = UDim2.new(1, 0, 1, 0),
@@ -135,7 +151,7 @@ local function PlaceItem(props: {
 			BackgroundColor3 = Color3.new(1, 0.2, 0.4),
 			TextColor3 = Color3.new(1, 1, 1),
 			TextSize = 42,
-			ZIndex = 2,
+			ZIndex = 10,
 			[React.Event.Activated] = props.close,
 			Position = UDim2.new(1, 0, 0, 0),
 			AnchorPoint = Vector2.new(0.5, 0.5),

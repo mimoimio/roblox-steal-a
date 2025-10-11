@@ -21,15 +21,15 @@ PlayerData.Owners = {} :: { [PlayerData]: Player }
 local Changed = Instance.new("BindableEvent")
 PlayerData.Changed = Changed.Event
 
-function PlayerData.new(player: Player)
-	local self = setmetatable(PlayerDataService:LoadPlayerData(player), PlayerData)
+function PlayerData.new(player: Player): PlayerData?
+	local savedPD = PlayerDataService:LoadPlayerData(player) -- fetches saved pd or default. nil if DataStore error
+	if not savedPD then
+		return
+	end
+
+	local self = setmetatable(savedPD, PlayerData)
 	self.ItemSlots = ItemSlots.new(self.ItemSlots, player)
 	self.PlayerSettings = PlayerSettings.new(player, self.PlayerSettings)
-
-	for i, c: Item in self.Items do
-		local itemConfig: ItemConfig? = ItemsConfig[c.ItemId]
-		c.Effect = itemConfig.Effect
-	end
 
 	warn(self)
 
@@ -54,7 +54,11 @@ end
 function PlayerData:FireItemUpdateEvent()
 	local self: PlayerData = self
 	local ItemUpdated: RemoteEvent = game.ReplicatedStorage.Shared.Events.ItemUpdated
-	ItemUpdated:FireClient(PlayerData.Owners[self], self.Items)
+	ItemUpdated:FireClient(PlayerData.Owners[self], self.Items, true)
+end
+function PlayerData:FireItemUpdateBindableEvent()
+	local self: PlayerData = self
+	Changed:Fire(self, PlayerData.Owners[self])
 end
 
 function PlayerData:DeleteItem(UID: string)
@@ -69,4 +73,4 @@ function PlayerData:DeleteItem(UID: string)
 	end
 end
 
-return PlayerData :: PlayerData
+return PlayerData

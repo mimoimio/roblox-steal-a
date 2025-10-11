@@ -6,5 +6,5 @@ return {
 	ItemId = "radiooze",
 	DisplayName = "Radioactive Ooze",
 	Rate = 200,
-	Tier = "uncommon",
+	TierId = "uncommon",
 } :: ItemConfig

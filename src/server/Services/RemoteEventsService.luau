@@ -21,6 +21,9 @@ ResourcesUpdated.Name = "ResourcesUpdated"
 local StrangeSpawned = Instance.new("RemoteEvent", game.ReplicatedStorage.Shared.Events)
 StrangeSpawned.Name = "StrangeSpawned"
 
+local Wipe = Instance.new("RemoteEvent", game.ReplicatedStorage.Shared.Events)
+Wipe.Name = "Wipe"
+
 function RemoteEventsService.initialize()
 	if RemoteEventsService.isInitialized then
 		return
@@ -36,6 +39,8 @@ function RemoteEventsService.initialize()
 		end
 		return PlayerData.Collections[player].Items
 	end
+
+	Wipe.OnServerEvent:Connect(function(player) end)
 end
 
 return RemoteEventsService

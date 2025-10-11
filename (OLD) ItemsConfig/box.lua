@@ -7,6 +7,6 @@ type ItemConfig = {
 return {
 	ItemId = "box",
 	DisplayName = "Box",
-	Rate = 3,
-	Tier = "common",
+	Rate = 4,
+	TierId = "common",
 } :: ItemConfig

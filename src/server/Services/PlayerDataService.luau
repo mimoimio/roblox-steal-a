@@ -9,14 +9,29 @@ local DefaultPlayerData = require(game.ReplicatedStorage.Shared.Configs.DefaultP
 
 local PlayerDataService = {}
 
-function PlayerDataService:LoadPlayerData(player: Player)
+function PlayerDataService:LoadPlayerData(player: Player): PlayerData?
 	warn(player.UserId)
 	local PlayerData = {}
-	local success, result: PlayerData? = pcall(function()
-		return PlayerDataStore:GetAsync(player.UserId)
-	end)
+	local ok: boolean, result: PlayerData?
 
-	result = success and result or {}
+	for i = 1, 5 do
+		ok, result = pcall(function()
+			return PlayerDataStore:GetAsync(player.UserId)
+		end)
+		if ok then
+			break
+		else
+			warn("Failed to load player data:", result, "retrying...")
+			task.wait()
+		end
+	end
+
+	if not ok then
+		warn("Critical error: Failed to load player data")
+		return nil
+	end
+
+	result = result or {}
 
 	local Resources = result.Resources or table.clone(DefaultPlayerData.Resources)
 	local PlayerSettings = result.PlayerSettings or table.clone(DefaultPlayerData.PlayerSettings)
@@ -30,8 +45,6 @@ function PlayerDataService:LoadPlayerData(player: Player)
 			table.insert(Items, table.clone(item))
 		end
 	end
-	-- warn("result.ItemSlots", result.ItemSlots)
-	-- warn("DefaultPlayerData.ItemSlots", DefaultPlayerData.ItemSlots)
 	local ItemSlots = result.ItemSlots or table.clone(DefaultPlayerData.ItemSlots)
 
 	PlayerData = {
@@ -47,13 +60,15 @@ end
 function PlayerDataService:SavePlayerData(player: Player, data: PlayerData)
 	-- cleanup functions from datastore
 	for i, c: Item in data.Items do
-		c.Effect = nil
+		c.Entry = nil
+		c.Removed = nil
+		c.Merged = nil
 	end
 
-	local success, err = pcall(function()
+	local ok, err = pcall(function()
 		PlayerDataStore:SetAsync(player.UserId, data)
 	end)
-	if not success then
+	if not ok then
 		warn("Failed to SetAsync PlayerData", err)
 		warn("PlayerData", data)
 		return

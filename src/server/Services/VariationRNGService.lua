@@ -1,5 +1,6 @@
 local sharedtypes = require(game.ReplicatedStorage.Shared.types)
 type VariationConfig = sharedtypes.VariationConfig
+type VariationId = sharedtypes.VariationId
 local Probability = require(game.ServerScriptService.Server.Classes.Probability)
 local Clock = require(game.ServerScriptService.Server.Services.Clock)
 local SpecialEventsService = require(game.ServerScriptService.Server.Services.SpecialEventsService)
@@ -50,19 +51,29 @@ function VariationRNGService.initialize()
 	end)
 end
 
-function VariationRNGService:roll(): VariationConfig
+function VariationRNGService:roll(Variations: { VariationId }): VariationConfig
 	local varcfg
+	local itemVarsDict = {}
+	for i, varId in Variations do
+		itemVarsDict[varId] = true
+	end
 	for varId, prob in VariationRNGService.Probs do
 		if varId == "none" then
 			continue
 		end
+		if not itemVarsDict[varId] then
+			continue
+		end
+
 		local count = prob:getProbability()
 		local max = prob.maxProb
+		-- rolls. If success then use it.
 		local roll = prob:roll()
 		if roll then
 			varcfg = VariationsConfig[varId]
-			-- warn(VariationsConfig, varId)
 			if varcfg.VariationId == "strange" then
+				warn(varcfg.DisplayName, "spawned at count", count, "/", max)
+			elseif varcfg.VariationId == "starlight" then
 				warn(varcfg.DisplayName, "spawned at count", count, "/", max)
 			end
 			break
@@ -72,8 +83,9 @@ function VariationRNGService:roll(): VariationConfig
 		probx:increment()
 	end
 	rollCount += 1
-	-- warn(rollCount)
-	return varcfg or VariationsConfig["none"]
+	varcfg = varcfg or VariationsConfig["none"]
+	warn(varcfg.DisplayName)
+	return varcfg
 end
 
 return VariationRNGService

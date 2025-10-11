@@ -70,7 +70,7 @@ local function Main(props)
 	-- Toggle helpers
 	local function toggle(panel: Panel)
 		setActivePanel(function(prev: Panel)
-			warn("Setting active panel. strictPanel:", strictPanelRef.current)
+			-- warn("Setting active panel. strictPanel:", strictPanelRef.current)
 			if strictPanelRef.current ~= "none" then
 				return strictPanelRef.current
 			end
@@ -96,11 +96,11 @@ local function Main(props)
 	end
 
 	useEffect(function()
-		warn("strictpanel", strictPanel)
+		-- warn("strictpanel", strictPanel)
 		strictPanelRef.current = strictPanel
 	end, { strictPanel })
 	useEffect(function()
-		warn("activePanel", activePanel)
+		-- warn("activePanel", activePanel)
 	end, { activePanel })
 
 	--[[ MOUNT HANDLER ]]
@@ -129,11 +129,17 @@ local function Main(props)
 					toggle("settings")
 				elseif io.KeyCode == Enum.KeyCode.M then
 					toggle("mustard")
+				elseif io.KeyCode == Enum.KeyCode.G then
+					toast.open("G")
+				elseif io.KeyCode == Enum.KeyCode.H then
+					toast.open("H")
+				elseif io.KeyCode == Enum.KeyCode.J then
+					toast.open("J")
 				end
 			end),
 
 			--[[ PLAYER ITEMS UPDATE EVENT ================================]]
-			itemupdatedconnection = ItemUpdated.OnClientEvent:Connect(function(fetchedItems: { Item })
+			itemupdatedconnection = ItemUpdated.OnClientEvent:Connect(function(fetchedItems: { Item }, Flash: boolean)
 				setPlayerData(function(prev: PlayerData)
 					local new = table.clone(prev)
 					new.Items = fetchedItems
@@ -153,7 +159,7 @@ local function Main(props)
 						end
 					end
 
-					if removedCount > 0 then
+					if removedCount > 0 and Flash then
 						toast.open("Removed " .. removedCount .. " items", 3, Color3.new(1, 0, 0))
 					end
 
@@ -363,7 +369,7 @@ local function Main(props)
 		}),
 		HUD = e(HUD, {
 			PlayerData = PlayerData,
-			ItemAmt = #PlayerData.Items,
+			ItemAmt = PlayerData and PlayerData.Items and #PlayerData.Items,
 			OnInventoryButtonClick = function()
 				toggle("inventory")
 			end,

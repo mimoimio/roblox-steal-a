@@ -51,36 +51,40 @@ end
 
 function Item:FireDeletedEvent()
 	local owner: Player = Item.Owners[self]
-	ItemDeleted:Fire(Item.Collections[owner], owner)
+	ItemDeleted:Fire(PlayerData.Collections[owner].Items, owner)
 end
-function Item:FireCreatedEvent()
-	local owner: Player = Item.Owners[self]
-	ItemDeleted:Fire(Item.Collections[owner], owner)
+function Item.FireCreatedEvent(self: Item, owner: Player)
+	warn("received", owner)
+	owner = owner or Item.Owners[self]
+	warn("processed", owner)
+	ItemCreated:Fire(PlayerData.Collections[owner].Items, owner)
 end
 function Item:FireSoldEvent(player: Player)
 	ItemSold:Fire(PlayerData.Collections[player].Items, player)
 end
 
-function Item.new(ItemId: string, Player: Player, VariationId: string): Item?
+function Item.new(ItemId: string, Player: Player, VariationId: string?): Item?
 	if #PlayerData.Collections[Player].Items >= 24 then
 		ExceedingLimit:FireClient(Player)
-		warn("Exceeding limit!")
 		return nil
 	end
 
 	local itemConfig: ItemConfig? = ItemsConfig[ItemId]
-	local variation: VariationConfig = VariationsConfig[VariationId]
-	local tier: TierConfig = TiersConfig[itemConfig.Tier]
-	assert(itemConfig, "NO ITEM WITH ID " .. ItemId .. " FOUND")
-	assert(itemConfig, "NO ITEM WITH ID " .. ItemId .. " FOUND")
+	local variation: VariationConfig = VariationsConfig[VariationId] or VariationsConfig["none"]
+	local tier: TierConfig = TiersConfig[itemConfig.TierId]
 	assert(itemConfig, "NO ITEM WITH ID " .. ItemId .. " FOUND")
 
-	local self = setmetatable(table.clone(itemConfig), Item)
+	local self = setmetatable({}, Item)
 	self.UID = Item.generateUID(Player)
-	self.Rate *= variation.Multiplier
-	self.Variation = variation.VariationId
-	self.Tier = tier.TierId
-
+	self.ItemId = itemConfig.ItemId
+	self.DisplayName = itemConfig.DisplayName
+	self.Rate = itemConfig.Rate * variation.Multiplier
+	self.VariationId = variation.VariationId
+	self.TierId = tier.TierId
+	self.Entry = nil
+	self.Merge = nil
+	self.Removed = nil
+	self.Variations = nil
 	table.insert(PlayerData.Collections[Player].Items, self)
 
 	ItemCreated:Fire(PlayerData.Collections[Player].Items, Player)
@@ -88,18 +92,31 @@ function Item.new(ItemId: string, Player: Player, VariationId: string): Item?
 	local ItemUpdated: RemoteEvent = game.ReplicatedStorage.Shared.Events.ItemUpdated
 	ItemUpdated:FireClient(Player, PlayerData.Collections[Player].Items)
 
-	self:FireCreatedEvent()
+	self:FireCreatedEvent(Player)
 
 	return self
 end
 
 function Item:Sell(player)
 	local pd: PlayerData = PlayerData.Collections[player]
+	local TycoonService = require(game.ServerScriptService.Server.Services.TycoonService)
+	local playersTycoon = TycoonService.GetTycoonFromPlayer:Invoke(player)
+	warn("selling,", playersTycoon)
 	for i, item: Item in pd.Items do
 		if item.UID == self.UID then
+			local itemConfig: ItemConfig = ItemsConfig[item.ItemId]
+			local removed = itemConfig and type(itemConfig.Removed) == "function" and itemConfig.Removed or nil
+
+			if removed then
+				warn("REMOVING", item.DisplayName)
+				removed(item, player)
+			end
+			warn("REMOVED")
+
 			table.remove(pd.Items, i)
 			pd.Resources.Money += self.Rate
 			Item.FireSoldEvent(item, player)
+
 			return
 		end
 	end

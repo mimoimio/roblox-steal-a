@@ -121,19 +121,32 @@ local function SellItem(props: {
 			tween:Play()
 		end
 	end, { props.SellItemOpen })
-	return e("Frame", {
+	return e("ImageLabel", {
 		Size = UDim2.new(1, 0, 1, 0),
 		Position = CLOSED_POS,
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		BackgroundColor3 = Color3.new(0.2, 0.1, 0),
-		BackgroundTransparency = 0.8,
+		-- BackgroundColor3 = Color3.new(0.2, 0.1, 0),
+		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		Active = true,
 		Visible = visible,
 		ref = FrameRef,
 		ClipsDescendants = false,
 		ZIndex = 1,
+		Image = "rbxassetid://136242854116857",
+		ScaleType = Enum.ScaleType.Slice,
+		SliceCenter = Rect.new(30, 30, 90, 90),
 	}, {
+		UIGradient = e("UIGradient", {
+			Color = ColorSequence.new(Color3.new(0.352941, 0.133333, 0.203921), Color3.new(0.7, 0.5, 0.8)),
+			Rotation = 90,
+		}),
+		UIPadding = e("UIPadding", {
+			PaddingTop = UDim.new(0, 30),
+			PaddingRight = UDim.new(0, 30),
+			PaddingLeft = UDim.new(0, 30),
+			PaddingBottom = UDim.new(0, 30),
+		}),
 		MainFrame = e("Frame", {
 			Size = UDim2.new(1, 0, 1, 0),
 			Position = UDim2.new(0, 0, 0, 0),
@@ -210,7 +223,7 @@ local function SellItem(props: {
 			BackgroundColor3 = Color3.new(1, 0.2, 0.4),
 			TextColor3 = Color3.new(1, 1, 1),
 			TextSize = 42,
-			ZIndex = 2,
+			ZIndex = 10,
 			[React.Event.Activated] = props.close,
 			Position = UDim2.new(1, 0, 0, 0),
 			AnchorPoint = Vector2.new(0.5, 0.5),

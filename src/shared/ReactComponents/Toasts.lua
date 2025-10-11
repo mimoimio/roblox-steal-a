@@ -23,31 +23,63 @@ local function Toast(props: {
 	duration: number,
 	LayoutOrder: number,
 	color: Color3?,
+	onMount: ((startClose: () -> nil) -> nil)?,
 })
 	local frameref = React.useRef()
 	local textref = React.useRef()
-	React.useEffect(function()
-		TweenService:Create(
-			frameref.current,
-			TweenInfo.new(props.duration / 4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-			{ Size = NORMAL_SIZE }
-		):Play()
-		TweenService:Create(
-			textref.current,
-			TweenInfo.new(props.duration / 4, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out),
-			{ TextTransparency = 0 }
-		):Play()
-		task.delay(props.duration / 2, function()
+	local closingRef = React.useRef(false) -- so it doesnt run twice
+
+	local function startClose()
+		if closingRef.current then
+			return
+		end
+		closingRef.current = true
+		local closeTime = props.duration / 10
+		if frameref.current then
 			TweenService:Create(
 				frameref.current,
-				TweenInfo.new(props.duration / 2, Enum.EasingStyle.Cubic, Enum.EasingDirection.In),
+				TweenInfo.new(closeTime, Enum.EasingStyle.Cubic, Enum.EasingDirection.In),
 				{ Size = END_SIZE }
 			):Play()
+		end
+		if textref.current then
 			TweenService:Create(
 				textref.current,
-				TweenInfo.new(props.duration / 2, Enum.EasingStyle.Cubic, Enum.EasingDirection.In),
+				TweenInfo.new(closeTime, Enum.EasingStyle.Cubic, Enum.EasingDirection.In),
 				{ TextTransparency = 1 }
 			):Play()
+		end
+		task.delay(closeTime, function()
+			props.close()
+		end)
+	end
+
+	React.useEffect(function()
+		-- opening animation
+		local openTime = props.duration / 4
+		if frameref.current then
+			TweenService:Create(
+				frameref.current,
+				TweenInfo.new(openTime, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+				{ Size = NORMAL_SIZE }
+			):Play()
+		end
+		if textref.current then
+			TweenService:Create(
+				textref.current,
+				TweenInfo.new(openTime, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out),
+				{ TextTransparency = 0 }
+			):Play()
+		end
+
+		-- register with provider
+		if props.onMount then
+			props.onMount(startClose)
+		end
+
+		-- auto schedule close
+		task.delay(props.duration, function()
+			startClose()
 		end)
 	end, {})
 
@@ -72,7 +104,6 @@ local function Toast(props: {
 			TextStrokeColor3 = Color3.new(0, 0, 0),
 			Font = Enum.Font.FredokaOne,
 			TextScaled = true,
-			-- TextSize = 24,
 			Text = props.message,
 			TextXAlignment = Enum.TextXAlignment.Center,
 		}),
@@ -119,10 +150,7 @@ local function ToastProvider(props)
 			return clone
 		end)
 
-		-- schedule auto-close
-		task.delay(duration, function()
-			closeToast(newToast.id)
-		end)
+		-- auto-close now deferred to Toast's startClose
 		return true
 	end
 
@@ -142,7 +170,11 @@ local function ToastProvider(props)
 		}),
 	}
 
+	local closersRef = React.useRef({} :: { [number]: () -> () })
+
 	for i, toast in ipairs(Toasts) do
+		local keepStart = math.max(#Toasts - 2, 1)
+		local forceClose = i < keepStart
 		Flashes["_" .. tostring(i)] = React.createElement(Toast, {
 			key = toast.id,
 			LayoutOrder = -toast.id,
@@ -150,10 +182,32 @@ local function ToastProvider(props)
 			message = toast.message,
 			color = toast.color,
 			close = function()
+				closersRef.current[toast.id] = nil
 				closeToast(toast.id)
+			end,
+			onMount = function(startClose)
+				closersRef.current[toast.id] = startClose
+				if forceClose then -- calls on startClose callback when forcing it to close
+					startClose()
+				end
 			end,
 		})
 	end
+
+	React.useEffect(function()
+		if #Toasts <= 3 then
+			return
+		end
+		local keepStart = math.max(#Toasts - 2, 1)
+		for i, toast in ipairs(Toasts) do
+			if i < keepStart then
+				local closer = closersRef.current[toast.id]
+				if closer then
+					closer()
+				end
+			end
+		end
+	end, { Toasts })
 
 	children["FlashDisplay"] = React.createElement("Frame", {
 		Size = UDim2.new(0.5, 0, 0.5, 0),
@@ -161,7 +215,7 @@ local function ToastProvider(props)
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		BackgroundTransparency = 1,
 		Active = false,
-		ZIndex = -1,
+		ZIndex = 10,
 	}, Flashes)
 
 	return React.createElement(ToastContext.Provider, {

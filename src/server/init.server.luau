@@ -24,7 +24,7 @@ local shared: { Services: { Service } } = ServerTypes
 -- Initialization phase
 for _, service in shared.Services do
 	if service.initialize then
-		warn("Initializing service:", _, service)
+		-- warn("Initializing service:", _, service)
 		local ok, err = pcall(service.initialize, service)
 		if not ok then
 			warn("Error initializing service:", err)

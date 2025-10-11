@@ -2,10 +2,11 @@ type ItemConfig = {
 	ItemId: string,
 	DisplayName: string,
 	Rate: number,
+	Tier: string,
 }
 return {
-	ItemId = "mimoimio",
-	DisplayName = "Mimoimior",
-	Rate = 100,
-	Tier = "uncommon",
+	ItemId = "box",
+	DisplayName = "Box",
+	Rate = 3,
+	TierId = "common",
 } :: ItemConfig

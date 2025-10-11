@@ -15,10 +15,13 @@ local e = React.createElement
 local useRef = React.useRef
 local useEffect = React.useEffect
 local useState = React.useState
+local useCallback = React.useCallback
 
-local itemConfigs = require(game.ReplicatedStorage.Shared.Configs.ItemsConfig)
+local itemConfigs: { ItemConfig } = require(game.ReplicatedStorage.Shared.Configs.ItemsConfig)
 local variationConfigs = require(game.ReplicatedStorage.Shared.Configs.VariationsConfig)
 local tierConfigs = require(game.ReplicatedStorage.Shared.Configs.TiersConfig)
+
+local FormatItemLabelText = require(game.ReplicatedStorage.Shared.Utils.Format).FormatItemLabelText
 
 local TycoonService = {}
 local ItemSlots = require(game.ServerScriptService.Server.Classes.ItemSlots)
@@ -40,10 +43,22 @@ local function getItems(player: Player): { Item }?
 	return items
 end
 local function getItemSlots(player: Player): ItemSlots?
+	local start = tick()
+
 	while not PlayerData.Collections[player] do
 		warn("waiting for PlayerData.Collections[player]", player)
 		task.wait(0.1)
+		local elapsed = tick() - start
+		if elapsed >= 10 then
+			break
+		end
 	end
+
+	if not PlayerData.Collections[player] then -- if failed to fetch playerdata, returns nil
+		warn("Player data fetch time out")
+		return nil
+	end
+
 	local itemSlots = PlayerData.Collections[player].ItemSlots
 	return itemSlots
 end
@@ -57,7 +72,20 @@ end
 
 --[[======================================================================================================================================================================================================]]
 
-local function TycoonItem(props: { ItemUID: string | "none", Player: Player, SlotNum: Slot, Item: Item? })
+local function OwnedItem(props)
+	useEffect(function()
+		props.RunGrowth()
+	end, {})
+	return e("Folder")
+end
+
+local function TycoonItem(props: {
+	ItemUID: string | "none",
+	Player: Player,
+	SlotNum: Slot,
+	Item: Item?,
+	Rate: number,
+})
 	local ref = useRef()
 	local cloneRef = useRef()
 	local slot: Part, setSlot = useState(nil)
@@ -152,39 +180,22 @@ local function TycoonItem(props: { ItemUID: string | "none", Player: Player, Slo
 		if props.ItemUID ~= "none" then
 			local item = pd:GetItemFromUID(props.ItemUID)
 			assert(item, "NO ITEM WITH UID " .. props.ItemUID .. " FOUND")
-			local itemModel = game.ReplicatedStorage.Shared.Models:FindFirstChild(item.ItemId)
-			assert(itemModel, "NO ITEM MODEL WITH ID" .. props.ItemUID .. " FOUND")
+			local ok, itemModel = pcall(function()
+				local model = game.ReplicatedStorage.Shared.Models:FindFirstChild(item.ItemId)
+				assert(model, "NO ITEM MODEL WITH ID" .. (props.ItemId or "") .. " FOUND")
+				return model
+			end)
+
+			if not ok then
+				warn(itemModel)
+				itemModel = game.ReplicatedStorage.Shared.Models:FindFirstChild("error")
+			end
 
 			local clone: Model = itemModel:Clone()
 
 			local tlabel = clone.PrimaryPart.BillboardGui:WaitForChild("TextLabel")
 
-			local cfg = itemConfigs[item.ItemId]
-			local varcfg = variationConfigs[item.Variation] or variationConfigs[(item.Variation :: string):lower()]
-			local tier = tierConfigs[item.Tier] or tierConfigs[(item.Tier :: string):lower()]
-
-			-- Name, Variation, Tier, and Rate Display
-			local name = cfg.DisplayName
-			local varColor = varcfg.ColorPrimary:ToHex()
-			local varName = varcfg.DisplayName
-			local tierColor = tier.ColorPrimary:ToHex()
-			local tierName = tier.DisplayName
-			local rate = item.Rate
-			--cfg.Rate * (varcfg.Multiplier or 1)
-
-			local text
-			if varcfg.VariationId ~= "none" then
-				text = --
-					([[<font size="32">%s</font>
-<font color="#%s">%s</font> | <font color="#%s">%s</font>
-<font>%s/s</font>]]):format(name, varColor, varName, tierColor, tierName, rate)
-			else
-				text = --
-					([[<font>%s</font>
-<font color="#%s">%s</font>
-<font>%s/s</font>]]):format(name, tierColor, tierName, rate)
-			end
-			tlabel.Text = text
+			tlabel.Text = FormatItemLabelText(item)
 
 			clone.PrimaryPart.Anchored = true
 			cloneRef.current = clone
@@ -214,37 +225,12 @@ local function TycoonItem(props: { ItemUID: string | "none", Player: Player, Slo
 		if not model then
 			return
 		end
-		-- rendering item model
+
+		-- rendering textlabel
 		if props.ItemUID ~= "none" then
 			local tlabel = model.PrimaryPart.BillboardGui:WaitForChild("TextLabel")
 
-			local cfg = itemConfigs[props.Item.ItemId]
-			local varcfg = variationConfigs[props.Item.Variation]
-				or variationConfigs[(props.Item.Variation :: string):lower()]
-			local tier = tierConfigs[props.Item.Tier] or tierConfigs[(props.Item.Tier :: string):lower()]
-
-			-- Name, Variation, Tier, and Rate Display
-			local name = cfg.DisplayName
-			local varColor = varcfg.ColorPrimary:ToHex()
-			local varName = varcfg.DisplayName
-			local tierColor = tier.ColorPrimary:ToHex()
-			local tierName = tier.DisplayName
-			local rate = props.Item.Rate
-			--cfg.Rate * (varcfg.Multiplier or 1)
-
-			local text
-			if varcfg.VariationId ~= "none" then
-				text = --
-					([[<font size="32">%s</font>
-<font color="#%s">%s</font> | <font color="#%s">%s</font>
-<font>%s/s</font>]]):format(name, varColor, varName, tierColor, tierName, rate)
-			else
-				text = --
-					([[<font>%s</font>
-<font color="#%s">%s</font>
-<font>%s/s</font>]]):format(name, tierColor, tierName, rate)
-			end
-			tlabel.Text = text
+			tlabel.Text = FormatItemLabelText(props.Item)
 		end
 		return function() end
 	end, { props.ItemUID, props.SlotNum, props.Rate })
@@ -259,12 +245,20 @@ end
 
 local function Tycoon(props: TycoonProps)
 	local children = {}
-	local money, setMoney = useState(PlayerData.Collections[props.Player].Resources.Money)
-	local rateRef = useRef()
+	-- local money, setMoney = useState(PlayerData.Collections[props.Player].Resources.Money)
+	local resourcesRef = useRef(PlayerData.Collections[props.Player].Resources)
 	local characterRef = useRef()
 
 	local itemSlots: ItemSlots, setItemSlots = useState(props.ItemSlots)
 	local items: { Item }, setItems = useState(props.Items)
+	local growthFunctions: { [string]: () -> nil? }, setGrowthFunctions = useState({})
+	local gFRef = useRef(growthFunctions)
+
+	useEffect(function()
+		warn("#items", items)
+	end, items)
+
+	-- display owner board on tycoon mount
 	useEffect(function()
 		local plot = props.Plot
 		local player = props.Player
@@ -297,8 +291,10 @@ local function Tycoon(props: TycoonProps)
 		TextLabel.Size = UDim2.new(1, 0, 1, 0)
 		TextLabel.BackgroundTransparency = 1
 		TextLabel.Text = player.Name
-		TextLabel.TextSize = 100
+		TextLabel.TextScaled = true
+		-- TextLabel.TextSize = 100
 		TextLabel.Parent = surfaceGui
+		TextLabel.Font = Enum.Font.FredokaOne
 		TextLabel.ZIndex = 3
 
 		-- Get player thumbnail
@@ -312,33 +308,56 @@ local function Tycoon(props: TycoonProps)
 			surfaceGui:Destroy()
 		end
 	end, { props.Plot, props.Player })
+
+	-- once mount, connect to events
 	useEffect(function()
-		while not Item.Created or not Item.Deleted do
-			warn("not Item.Created or not Item.Deleted ", Item)
+		-- wait for events
+		while not Item.Created or not Item.Deleted or not PlayerData.Changed do
+			warn("not Item.Created or not Item.Deleted or not PlayerData.Changed", Item)
 			task.wait()
 		end
 
 		local SellItems: RemoteEvent = game.ReplicatedStorage.Shared.Events:WaitForChild("SellItems")
 		local connections = {
+			-- when ItemSlots.Changed is fired
 			ISChanged = ItemSlots.Changed:Connect(function(IS: ItemSlots, player)
 				if player ~= props.Player then
 					return
 				end
-				setItemSlots(IS)
+				setItemSlots(function(prev: ItemSlots)
+					local new = table.clone(IS)
+					return new
+				end)
 				game.ReplicatedStorage.Shared.Events.ItemSlotsUpdate:FireClient(props.Player, IS)
 			end),
+
+			-- when Item.Created is fired
 			ICreated = Item.Created:Connect(function(itms: { Item }, player)
 				if player ~= props.Player then
 					return
 				end
-				setItems(itms)
+				local newitems = table.clone(itms)
+				setItems(newitems)
 			end),
+
+			PDChanged = PlayerData.Changed:Connect(function(pd: PlayerData, player)
+				if player ~= props.Player then
+					return
+				end
+				local newitems = table.clone(pd.Items)
+				setItems(newitems)
+			end),
+
+			-- when Item.Deleted is fired
 			IDeleted = Item.Deleted:Connect(function(itms: { Item }, player)
 				if player ~= props.Player then
 					return
 				end
-				setItems(itms)
+				local newitems = table.clone(itms)
+				setItems(newitems)
 			end),
+
+			-- handling player sell
 			sellItemConnection = SellItems.OnServerEvent:Connect(
 				function(playerwhofired, selectedItemUIDs: { [string]: boolean })
 					-- only owner
@@ -348,7 +367,7 @@ local function Tycoon(props: TycoonProps)
 					if not selectedItemUIDs then
 						return
 					end
-					local pd: PlayerData = PlayerData.Collections[playerwhofired]
+					local pd = PlayerData.Collections[playerwhofired]
 					-- only item that's valid
 					-- only one item amongst all tycoon's slot
 					for i, id in selectedItemUIDs do
@@ -358,8 +377,7 @@ local function Tycoon(props: TycoonProps)
 						end
 					end
 					pd:FireItemUpdateEvent()
-					warn(pd)
-					setItems(pd.Items)
+					setItems(table.clone(pd.Items))
 				end
 			),
 		}
@@ -372,8 +390,8 @@ local function Tycoon(props: TycoonProps)
 		end
 	end, {})
 
+	-- displaying stats on player's character everytime character changed
 	useEffect(function()
-		warn(props.Character, "added")
 		if not props.Character then
 			return
 		end
@@ -394,7 +412,8 @@ local function Tycoon(props: TycoonProps)
 	for slotNum: Slot, ItemUID: string in itemSlots do
 		placed[ItemUID] = slotNum
 		if ItemUID ~= "none" then
-			local item = PlayerData.Collections[props.Player]:GetItemFromUID(ItemUID)
+			local item = PlayerData.Collections[props.Player]
+				and PlayerData.Collections[props.Player]:GetItemFromUID(ItemUID)
 			-- check if item is actually there. If there is, it will be rendered later.
 			-- if itemuid actually leads to no where (deleted, sold) then render empty
 			if item then
@@ -415,9 +434,20 @@ local function Tycoon(props: TycoonProps)
 			Player = props.Player,
 		})
 	end
-
 	-- RENDERING ITEMS
 	for i, item: Item in items or {} do
+		children[item.UID] = e(OwnedItem, {
+			key = item.UID,
+			RunGrowth = function()
+				local s = "running Growth functions:\n"
+				for uid, fn in gFRef.current do
+					-- warn(uid, fn)
+					s ..= uid .. ": " .. tostring(fn) .. "\n"
+					fn()
+				end
+				-- warn(s)
+			end,
+		})
 		if placed[item.UID] then
 			placedItems[item.UID] = item
 			local slotNum = placed[item.UID]
@@ -430,60 +460,92 @@ local function Tycoon(props: TycoonProps)
 				Rate = item.Rate,
 			})
 			continue
+		else
 		end
 	end
+
+	-- running entry item effect
 	local rate = 0
+	local pd = PlayerData.Collections[props.Player]
+	for uid, shallowitem in placedItems do
+		-- previously entered doesnt work because it's assigned to the shallowly cloned placed items here, not the actual items
+		local item = pd:GetItemFromUID(uid)
+		if not item then
+			continue
+		end
+		local IC = itemConfigs[item.ItemId]
+		if not IC then
+			continue
+		end
+
+		if item.Entered then
+			continue
+		end
+		if IC.Entry and type(IC.Entry) == "function" then
+			task.defer(function()
+				IC.Entry(item, props.Player)
+				item.Entered = true
+			end)
+			warn("First time entered")
+		end
+	end
+
 	for i, item in placedItems do
 		rate += item.Rate
 	end
 
 	useEffect(function()
-		PlayerData.Collections[props.Player].Resources.Money = money
-	end, { money })
-
-	useEffect(function()
-		rateRef.current = rate
+		resourcesRef.current.Rate = rate
 		PlayerData.Collections[props.Player].Resources.Rate = rate
 	end, { rate })
 
 	local piref = useRef()
 	useEffect(function()
+		warn("1) items changed")
 		piref.current = placedItems
-	end, { placedItems })
+
+		local gF: { [string]: () -> nil? } = {}
+		for uid, item in placedItems do
+			local IC = itemConfigs[item.ItemId]
+			if not IC then
+				continue
+			end
+			if not IC.Growth or type(IC.Growth) ~= "function" then
+				continue
+			end
+			gF[uid] = function()
+				IC.Growth(pd:GetItemFromUID(item.UID), props.Player)
+			end
+		end
+		gFRef.current = gF
+		setGrowthFunctions(gF)
+	end, { items, itemSlots })
 
 	-- MONEY LOOP
 	useEffect(function()
 		local running = true
 		task.spawn(function()
 			while running do
+				-- warn("ran")
 				task.wait(1)
-				if rateRef.current >= 0 then
-					setMoney(function(prev)
-						local sum = prev + rateRef.current
-						-- for itemUID, item: Item in piref.current or {} do
-						-- 	if itemUID == "none" then
-						-- 		continue
-						-- 	end
-						-- 	if item.Effect and item.Effect.growth and typeof(item.Effect.growth) == "function" then
-						-- 		item.Effect.growth(PlayerData.Collections[props.Player]:GetItemFromUID(item.UID), props)
-						-- 	end
-						-- end
-						game.ReplicatedStorage.Shared.Events
-							:WaitForChild("ResourcesUpdated")
-							:FireClient(props.Player, PlayerData.Collections[props.Player].Resources)
-						local textlabel = characterRef.current
-							and characterRef.current:FindFirstChild("HumanoidRootPart")
-							and characterRef.current.HumanoidRootPart:FindFirstChild("BillboardGui")
-							and characterRef.current.HumanoidRootPart.BillboardGui:FindFirstChild("TextLabel")
-						if textlabel and textlabel:IsA("TextLabel") then
-							textlabel.Text = "Money: "
-								.. Alyanum.new(sum):toString()
-								.. "\nRate: "
-								.. Alyanum.new(rateRef.current or 0):toString()
-						end
+				if resourcesRef.current.Rate >= 0 then
+					local sum = resourcesRef.current.Money + resourcesRef.current.Rate
 
-						return sum
-					end)
+					game.ReplicatedStorage.Shared.Events:WaitForChild("ResourcesUpdated"):FireClient(
+						props.Player,
+						PlayerData.Collections[props.Player] and PlayerData.Collections[props.Player].Resources
+					)
+					local textlabel = characterRef.current
+						and characterRef.current:FindFirstChild("HumanoidRootPart")
+						and characterRef.current.HumanoidRootPart:FindFirstChild("BillboardGui")
+						and characterRef.current.HumanoidRootPart.BillboardGui:FindFirstChild("TextLabel")
+					if textlabel and textlabel:IsA("TextLabel") then
+						textlabel.Text = "Money: "
+							.. Alyanum.new(sum):toString()
+							.. "\nRate: "
+							.. Alyanum.new(resourcesRef.current.Rate or 0):toString()
+					end
+					resourcesRef.current.Money = sum
 				end
 			end
 		end)
@@ -500,10 +562,17 @@ end
 -- MANAGES EVERY PLAYER'S TYCOON
 local function TycoonApp(props)
 	local tycoons: { [Player]: TycoonProps }, setTycoons = useState({} :: { [Player]: TycoonProps })
+	local tycoonsRef = useRef({})
 
 	-- Once Mounted
 	useEffect(function()
 		local playerSet: { [Player]: boolean } = {}
+
+		TycoonService.GetTycoonFromPlayer = Instance.new("BindableFunction")
+		TycoonService.GetTycoonFromPlayer.Name = "GetTycoonFromPlayer"
+		TycoonService.GetTycoonFromPlayer.OnInvoke = function(player)
+			return tycoonsRef.current and tycoonsRef.current[player]
+		end
 
 		local function createTycoon(player: Player)
 			if playerSet[player] then
@@ -533,16 +602,23 @@ local function TycoonApp(props)
 				end
 				task.spawn(cSet)
 
+				local playersItemSlots = getItemSlots(player) :: ItemSlots?
+
+				if not playersItemSlots then
+					return newTycoons
+				end
+
 				newTycoons[player] = {
 					Player = player,
 					Plot = Plot,
-					ItemSlots = getItemSlots(player),
+					ItemSlots = playersItemSlots,
 					Items = getItems(player),
 					Character = nil,
 				}
 				return newTycoons
 			end)
 		end
+
 		local function cleanupTycoon(player: Player)
 			setTycoons(function(prev: { TycoonProps })
 				local newTycoons = table.clone(prev)
@@ -555,9 +631,11 @@ local function TycoonApp(props)
 			playerSet[player] = false
 		end
 
+		-- on player added and removed
 		local pAddedCon = game.Players.PlayerAdded:Connect(createTycoon)
 		local pRemovedCon = game.Players.PlayerRemoving:Connect(cleanupTycoon)
 
+		-- iterate Players in case player joined before the connection
 		for i, Player: Player in game.Players:GetPlayers() do
 			if playerSet[Player] then
 				continue
@@ -566,6 +644,9 @@ local function TycoonApp(props)
 		end
 
 		return function()
+			if TycoonService.GetTycoonFromPlayer then
+				TycoonService.GetTycoonFromPlayer:Destroy()
+			end
 			if pAddedCon then
 				pAddedCon:Disconnect()
 			end
@@ -575,9 +656,13 @@ local function TycoonApp(props)
 		end
 	end, {})
 
+	useEffect(function()
+		tycoonsRef.current = tycoons
+	end, { tycoons })
+
 	local children = {}
 
-	warn("tycoons", tycoons)
+	-- warn("tycoons", tycoons)
 	for i, tycoon: TycoonProps in tycoons do
 		children[tycoon.Player.Name .. "'s Tycoon"] = e(Tycoon, {
 			key = "tycoon" .. tycoon.Player.UserId,
@@ -617,7 +702,7 @@ ITEM EFFECT TYPES: "GROWTH" or "DISCARD" or "ENTRY"
 	GROWTH
 		taken effect on every pulse (money loop)
 
-	DISCARD
+	SOLD
 		taken effect when is discarded
 
 	ENTRY

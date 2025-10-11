@@ -1,4 +1,5 @@
 local React = require(game.ReplicatedStorage.Packages.React)
+local Alyanum = require(game.ReplicatedStorage.Packages.Alyanum)
 local SpecialEventsConfig = require(game.ReplicatedStorage.Shared.Configs.SpecialEventsConfig)
 local TS = game:GetService("TweenService")
 
@@ -215,7 +216,7 @@ local function HUD(props)
 				BackgroundTransparency = 1,
 				Font = "FredokaOne",
 				TextSize = 14,
-				Text = "Money rate: " .. (rate and (rate .. "/s") or "..."),
+				Text = "Money rate: " .. (rate and (Alyanum.new(rate):toString() .. "/s") or "..."),
 				Active = false,
 				TextColor3 = Color3.new(1, 1, 1),
 			}),

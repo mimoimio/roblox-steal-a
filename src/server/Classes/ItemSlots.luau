@@ -9,9 +9,16 @@ type ItemSlots = { -- contains UID of items from PlayerData.Items
 
 local ItemSlots = {}
 ItemSlots.__index = ItemSlots
-
+ItemSlots.Collections = {} :: { [Player]: ItemSlots }
 local ItemSlotsChanged = Instance.new("BindableEvent")
 ItemSlotsChanged.Name = "ItemSlotsChanged"
+
+game.Players.PlayerRemoving:Connect(function(player)
+	if ItemSlots.Collections[player] then
+		ItemSlots.Owners[ItemSlots.Collections[player]] = nil
+		ItemSlots.Collections[player] = nil
+	end
+end)
 
 ItemSlots.Changed = ItemSlotsChanged.Event
 ItemSlots.Owners = {} :: { [ItemSlots]: Player }
@@ -23,6 +30,8 @@ end
 function ItemSlots.new(savedItemSlots: ItemSlots, Player: Player): ItemSlots?
 	local self = setmetatable(savedItemSlots, ItemSlots)
 	ItemSlots.Owners[self] = Player
+	ItemSlots.Collections[Player] = self
+
 	return self
 end
 

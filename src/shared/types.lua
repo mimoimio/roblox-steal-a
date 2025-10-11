@@ -9,40 +9,49 @@ export type TycoonProps = {
 	Items: { Item },
 }
 
+export type VariationId = "none" | "copper" | "silver" | "gold" | "diamond" | "starlight" | "strange"
+export type TierId = "common" | "uncommon" | "rare" | "epic" | "legendary" | "mythic"
+
 export type ItemConfig = {
 	ItemId: string,
 	DisplayName: string,
 	Rate: number,
 	Tier: string,
+	Variations: { VariationId },
+	Entry: (item: Item, tycoon: TycoonProps) -> nil?,
+	Merge: (item: Item, tycoon: TycoonProps) -> nil?,
+	Removed: (item: Item, tycoon: TycoonProps) -> nil?,
 }
 
 export type Item = {
 	UID: string,
 	ItemId: string,
 	DisplayName: string,
+	VariationId: VariationId,
 	Rate: number,
+	Entered: boolean?,
 }
 
 export type PlayerSettings = { MusicVolume: number? }
-
+export type Progress = { EXP: number, LVL: number, Life: number }
 export type PlayerData = {
 	Resources: { [string]: number },
 	PlayerSettings: PlayerSettings,
-	Progress: { EXP: number, LVL: number },
+	Progress: Progress,
 	Items: { Item },
 	ItemSlots: ItemSlots,
 }
 
 export type VariationConfig = {
-	VariationId: "none" | "copper" | "silver" | "gold" | "diamond" | "strange",
-	DisplayName: "" | "Copper" | "Silver" | "Gold" | "Diamond",
+	VariationId: VariationId,
+	DisplayName: string,
 	Multiplier: number,
 	ColorPrimary: Color3,
 	ColorSecondary: Color3?,
 	Weight: number,
 }
 export type TierConfig = {
-	TierId: "common" | "uncommon" | "rare" | "epic" | "legendary" | "mythic",
+	TierId: TierId,
 	DisplayName: "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary" | "Mythic",
 	ColorPrimary: Color3,
 	ColorSecondary: Color3?,

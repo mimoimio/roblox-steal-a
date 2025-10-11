@@ -30,25 +30,24 @@ function DefaultPlayerData.Get()
 	local DEFAULT_PROGRESS = {
 		EXP = 0,
 		LVL = 1,
+		Life = 1,
 	}
 	local DEFAULT_ITEMS: { Item } = {
 		{
 			UID = generateUID(),
-			ItemId = "rock",
-			DisplayName = "Rock",
-			Rate = 2,
-			Effect = {
-				growth = function(self: Item, tycoon: TycoonProps)
-					self.Rate += 1
-					warn("RATE INCREASED", self.Rate)
-				end,
-			},
+			VariationId = "none",
+			ItemId = "daybloom",
+			DisplayName = "Daybloom",
+			TierId = "common",
+			Rate = 9,
 		},
 		{
 			UID = generateUID(),
-			ItemId = "stick",
-			DisplayName = "Stick",
-			Rate = 3,
+			VariationId = "none",
+			ItemId = "daybloom",
+			DisplayName = "Daybloom",
+			TierId = "common",
+			Rate = 9,
 		},
 	}
 	local DEFAULT_ITEMSLOTS: ItemSlots = {

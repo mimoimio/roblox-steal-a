@@ -10,7 +10,7 @@ function self.start()
 	if started then
 		return
 	end
-	self.SecondsPerDay = 8 * 30
+	self.SecondsPerDay = 8 * 60
 	self.CurrentTime = game.Lighting.ClockTime
 	self.Lights = {}
 	for i, d in ipairs(workspace:GetDescendants()) do
@@ -64,6 +64,12 @@ end
 
 return self
 --[[
+
 Clock. Runs the day cycle. A chance to trigger a Special event "Starlight" during the night.
-The
+Starlight Event has a chance to turn moonglow to starlit
+
+1 hour irl = 3 in game day cycles
+20 minutes = 1 day cycle
+10 minutes = 1/2 a day
+
 ]]

@@ -5,8 +5,8 @@ type ItemConfig = {
 	Tier: string,
 }
 return {
-	ItemId = "stick",
-	DisplayName = "Stick",
-	Rate = 5,
-	Tier = "common",
+	ItemId = "crystal",
+	DisplayName = "Crystal",
+	Rate = 15,
+	"common",
 } :: ItemConfig

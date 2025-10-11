@@ -89,7 +89,7 @@ local function Settings(props: {
 			TextSize = 14,
 			TextColor3 = Color3.new(1, 1, 1),
 			[React.Event.Activated] = function()
-				game.ReplicatedStorage.Events.Wipe:FireServer()
+				game.ReplicatedStorage.Shared.Events.Wipe:FireServer()
 			end,
 		}, {
 			rounded = React.createElement(require(script.Parent.ui.rounded)),

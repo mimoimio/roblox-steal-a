@@ -42,7 +42,7 @@ local function Music(props: { PlayerData: PlayerData })
 		local folder = game.ReplicatedStorage.Shared:FindFirstChild("Music")
 		local list = {}
 		if folder then
-			for _, inst in folder:GetChildren() do
+			for _, inst in folder:GetDescendants() do
 				if inst:IsA("Sound") then
 					table.insert(list, inst)
 					-- warn(inst)

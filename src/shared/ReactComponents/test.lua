@@ -3,6 +3,7 @@ local Alyanum = require(game.ReplicatedStorage.Packages.Alyanum)
 local e = React.createElement
 local useState = React.useState
 local useEffect = React.useEffect
+local useRef = React.useRef
 local useToast = require(script.Parent.Toasts).useToast
 
 type Item = {
@@ -12,6 +13,13 @@ type Item = {
 	Rate: number,
 }
 
+local someTable = {
+	Key1 = "Value1",
+	Key2 = "Value2",
+	Key3 = "Value3",
+	Key4 = "Value4",
+}
+
 local OPEN_POS = UDim2.new(0.5, 0, 0.5, 0)
 
 local function test(props: {})
@@ -19,6 +27,7 @@ local function test(props: {})
 	local someState, setSomeState = useState(0)
 	local count = Alyanum.fromScientific("1e" .. someState)
 
+	local someRef = useRef(someTable)
 	useEffect(function()
 		toast.open("10^" .. someState .. " = " .. tostring(count))
 	end, { count })
@@ -33,11 +42,14 @@ local function test(props: {})
 		Text = "Multiply x10",
 		TextColor3 = Color3.new(1, 1, 1),
 		[React.Event.Activated] = function()
-			setSomeState(function(prev)
-				local a = prev
-				a += 1e10
-				return a
-			end)
+			-- setSomeState(function(prev)
+			-- 	local a = prev
+			-- 	a += 1e10
+			-- 	return a
+			-- end)
+			if not someRef.current then
+				return
+			end
 		end,
 		ClipsDescendants = false,
 		ZIndex = 100,
