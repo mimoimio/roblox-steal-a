@@ -276,10 +276,13 @@ end
 -- end
 
 function ItemSpawnService.start()
+	warn(itemConfigs)
+	local mdfolder = game.ReplicatedStorage.Shared.Models
 	for i, itemconfig in itemConfigs do
-		local model: Model = game.ReplicatedStorage.Shared.Models:FindFirstChild(itemconfig.ItemId):Clone()
+		warn(i)
+		local model: Model = (mdfolder:FindFirstChild(itemconfig.ItemId) or mdfolder:FindFirstChild("error")):Clone()
 		model.Parent = workspace
-		model:PivotTo(CFrame.new(i * 5, 10, 10))
+		model:PivotTo(CFrame.new(i * 10, 10, 10))
 		local pp = Instance.new("ProximityPrompt", model)
 		task.delay(1, function()
 			model.PrimaryPart.Anchored = true

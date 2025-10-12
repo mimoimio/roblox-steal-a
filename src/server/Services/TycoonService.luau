@@ -482,9 +482,13 @@ local function Tycoon(props: TycoonProps)
 			continue
 		end
 		if IC.Entry and type(IC.Entry) == "function" then
+			item.Entered = true
 			task.defer(function()
 				IC.Entry(item, props.Player)
-				item.Entered = true
+				-- item.Entered = true
+				-- may cause the Entered guard clause to not
+				-- detect since this is a task.defered function
+				-- so set outside
 			end)
 			warn("First time entered")
 		end
