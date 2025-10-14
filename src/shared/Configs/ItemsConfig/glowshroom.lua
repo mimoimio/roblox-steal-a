@@ -7,6 +7,7 @@ return {
 	ItemId = "glowshroom",
 	DisplayName = "Glowing Mushroom",
 	Rate = 16, -- A base rate for the item
+	Price = 200,
 	TierId = "uncommon",
 	Variations = { "none", "copper", "silver", "gold", "diamond", "strange" },
 	Entry = function(item: Item, player: Player)

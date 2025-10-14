@@ -7,6 +7,7 @@ return {
 	ItemId = "daybloom",
 	DisplayName = "Daybloom",
 	Rate = 9,
+	Price = 25,
 	TierId = "common",
 	Variations = { "none", "copper", "silver", "gold", "diamond", "strange" },
 	Entry = function(item: Item, player: Player)

@@ -6,6 +6,7 @@ return {
 	ItemId = "fireblossom",
 	DisplayName = "Fireblossom",
 	Rate = 8,
+	Price = 25,
 	TierId = "common",
 	Variations = { "none", "copper", "silver", "gold", "diamond", "strange" },
 	Removed = function(item: Item, player: Player)

@@ -5,6 +5,7 @@ type TycoonProps = sharedtypes.TycoonProps
 return {
 	ItemId = "waterleaf",
 	DisplayName = "Waterleaf",
+	Price = 25,
 	Rate = 7,
 	TierId = "common",
 	Variations = { "none", "copper", "silver", "gold", "diamond", "strange" },

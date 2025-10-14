@@ -609,6 +609,7 @@ local function TycoonApp(props)
 				local playersItemSlots = getItemSlots(player) :: ItemSlots?
 
 				if not playersItemSlots then
+					player:Kick("Sorry failed to fetch player data")
 					return newTycoons
 				end
 

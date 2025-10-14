@@ -7,6 +7,7 @@ return {
 	ItemId = "blinkroot",
 	DisplayName = "Blinkroot",
 	Rate = 5, -- A base rate for the item
+	Price = 25,
 	TierId = "common",
 	Variations = { "none", "copper", "silver", "gold", "diamond", "strange" },
 	Entry = function(item: Item, player: Player)

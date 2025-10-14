@@ -14,6 +14,7 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 
 local Alyanum = require(game.ReplicatedStorage.Packages.Alyanum)
 local Item = require(game.ServerScriptService.Server.Classes.Item)
+local PlayerData = require(game.ServerScriptService.Server.Classes.PlayerData)
 local GridService = require(script.Parent.GridService)
 local FormatItemLabelText = require(game.ReplicatedStorage.Shared.Utils.Format).FormatItemLabelText
 local VariationRNGService = require(script.Parent.VariationRNGService)
@@ -284,11 +285,21 @@ function ItemSpawnService.start()
 		model.Parent = workspace
 		model:PivotTo(CFrame.new(i * 10, 10, 10))
 		local pp = Instance.new("ProximityPrompt", model)
+		pp.ActionText = itemconfig.Price or "-" .. " coins"
+		pp.ObjectText = itemconfig.DisplayName
 		task.delay(1, function()
 			model.PrimaryPart.Anchored = true
 		end)
-		pp.Triggered:Connect(function(playerWhoTriggered)
-			Item.new(itemconfig.ItemId, playerWhoTriggered)
+		pp.Triggered:Connect(function(player)
+			local pd = PlayerData.Collections[player]
+			local money = pd.Resources.Money
+			money -= itemconfig.Price
+			if money <= 0 then
+				return
+			end
+			pd.Resources.Money = money
+
+			Item.new(itemconfig.ItemId, player)
 		end)
 	end
 end

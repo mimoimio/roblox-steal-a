@@ -6,6 +6,7 @@ return {
 	ItemId = "deathweed",
 	DisplayName = "Deathweed",
 	Rate = 10,
+	Price = 25,
 	TierId = "common",
 	Variations = { "none", "copper", "silver", "gold", "diamond", "strange" },
 	Removed = function(item: Item, player: Player)

@@ -23,8 +23,10 @@ function PlayerService.initialize()
 
 	game:GetService("Players").PlayerRemoving:Connect(function(player)
 		if not PlayerService.Collections[player] then
+			warn("no PlayerService.Collections[player]")
 			return
 		end
+		warn("yes PlayerService.Collections[player]")
 		PlayerDataService:SavePlayerData(player, PlayerData.Collections[player])
 		local pd = PlayerData.Collections[player]
 		PlayerData.Owners[pd] = nil

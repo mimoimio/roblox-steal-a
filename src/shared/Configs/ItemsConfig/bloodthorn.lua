@@ -4,12 +4,13 @@ type Item = sharedtypes.Item
 type TycoonProps = sharedtypes.TycoonProps
 
 return {
-	ItemId = "glowshroom",
-	DisplayName = "Glowing Mushroom",
+	ItemId = "bloodthorn",
+	DisplayName = "Bloodthorn",
 	Rate = 10, -- A base rate for the item
+	Price = 200,
 	TierId = "uncommon",
 	Variations = { "none", "copper", "silver", "gold", "diamond", "strange" },
-	Entry = function(item: Item, player: Player)
+	Removed = function(item: Item, player: Player)
 		local pd = require(game.ServerScriptService.Server.Classes.PlayerData).Collections[player]
 		local PlayerData = require(game.ServerScriptService.Server.Classes.PlayerData)
 		local Item = require(game.ServerScriptService.Server.Classes.Item)
@@ -24,25 +25,22 @@ return {
 		-- warn("Waiting for playeritemslots")
 		until playeritemslots
 
-		local UCplacedItemUids = {}
+		local placedItems = {}
 		for slot, UID in playeritemslots do
 			local placedItem = pd:GetItemFromUID(UID)
-			if not placedItem or placedItem.TierId ~= "uncommon" then
+			if not placedItem then
 				continue
 			end
-			table.insert(UCplacedItemUids, UID)
+			placedItem.Rate += item.Rate
 		end
-		if #UCplacedItemUids <= 0 then
+		if #placedItems <= 0 then
 			warn("No placed items")
 			return
 		end
-		warn("Placed uncommon items", UCplacedItemUids)
-		item.Rate += 15 * #UCplacedItemUids
-		-- Fire events to update the client and game state
 		playeritemslots:FireChangedEvent()
 		Item.FireCreatedEvent(items, player)
 		local ItemUpdated: RemoteEvent = game.ReplicatedStorage.Shared.Events.ItemUpdated
 		ItemUpdated:FireClient(player, PlayerData.Collections[player].Items)
 	end,
-	ItemTip = [[<font thickness="2" color="#bbffbb">Sold</font>: Permanently increases your Total Production Rate by 1%.]],
+	ItemTip = [[<font thickness="2" color="#bbffbb">Sold</font>: Placed items get this item's rate]],
 } :: ItemConfig

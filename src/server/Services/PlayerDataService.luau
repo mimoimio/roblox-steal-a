@@ -59,14 +59,19 @@ end
 
 function PlayerDataService:SavePlayerData(player: Player, data: PlayerData)
 	-- cleanup functions from datastore
+	warn("SAVING")
 	for i, c: Item in data.Items do
 		c.Entry = nil
 		c.Removed = nil
 		c.Merged = nil
 	end
+	warn("After cleaned up funciton")
 
 	local ok, err = pcall(function()
+		warn("SAved?")
+		warn(PlayerDataStore, PlayerDataStore.SetAsync, player.UserId, data)
 		PlayerDataStore:SetAsync(player.UserId, data)
+		warn("SAved!")
 	end)
 	if not ok then
 		warn("Failed to SetAsync PlayerData", err)
@@ -76,5 +81,14 @@ function PlayerDataService:SavePlayerData(player: Player, data: PlayerData)
 		warn("Saved!", data)
 	end
 end
+
+function onShutdown()
+	local PlayerData = require(game.ServerScriptService.Server.Classes.PlayerData)
+	for i, player in game.Players:GetPlayers() do
+		PlayerDataService:SavePlayerData(player, PlayerData.Collections[player])
+	end
+end
+
+game:BindToClose(onShutdown)
 
 return PlayerDataService
