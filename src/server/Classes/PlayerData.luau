@@ -51,13 +51,16 @@ function PlayerData:GetItemFromUID(UID: string): Item?
 	return
 end
 
-function PlayerData:FireItemUpdateEvent()
+function PlayerData:FireREChanged()
 	local self: PlayerData = self
 	local ItemUpdated: RemoteEvent = game.ReplicatedStorage.Shared.Events.ItemUpdated
 	ItemUpdated:FireClient(PlayerData.Owners[self], self.Items, true)
 end
-function PlayerData:FireItemUpdateBindableEvent()
+function PlayerData:FireBEChanged()
 	local self: PlayerData = self
+	if not self then
+		warn("playerData nil")
+	end
 	Changed:Fire(self, PlayerData.Owners[self])
 end
 
@@ -67,7 +70,7 @@ function PlayerData:DeleteItem(UID: string)
 	for i, item: Item in items or {} do
 		if UID == item.UID then
 			table.remove(items, i)
-			pd:FireItemUpdateEvent()
+			pd:FireREChanged()
 			return true
 		end
 	end

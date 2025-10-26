@@ -6,8 +6,8 @@ type TycoonProps = sharedtypes.TycoonProps
 return {
 	ItemId = "bloodthorn",
 	DisplayName = "Bloodthorn",
-	Rate = 10, -- A base rate for the item
-	Price = 200,
+	Rate = 15, -- A base rate for the item
+	Price = 15000,
 	TierId = "uncommon",
 	Variations = { "none", "copper", "silver", "gold", "diamond", "strange" },
 	Removed = function(item: Item, player: Player)
@@ -22,7 +22,6 @@ return {
 		repeat
 			playeritemslots = ItemSlots.Collections[player]
 			task.wait()
-		-- warn("Waiting for playeritemslots")
 		until playeritemslots
 
 		local placedItems = {}
@@ -31,10 +30,12 @@ return {
 			if not placedItem then
 				continue
 			end
+			if placedItem.ItemId == "bloodthorn" then
+				continue
+			end
 			placedItem.Rate += item.Rate
 		end
 		if #placedItems <= 0 then
-			warn("No placed items")
 			return
 		end
 		playeritemslots:FireChangedEvent()
@@ -42,5 +43,5 @@ return {
 		local ItemUpdated: RemoteEvent = game.ReplicatedStorage.Shared.Events.ItemUpdated
 		ItemUpdated:FireClient(player, PlayerData.Collections[player].Items)
 	end,
-	ItemTip = [[<font thickness="2" color="#bbffbb">Sold</font>: Placed items get this item's rate]],
+	ItemTip = [[<font thickness="2" color="#bbffbb">Sold</font>: Placed generators that are not bloodthorn get this generator's rate]],
 } :: ItemConfig

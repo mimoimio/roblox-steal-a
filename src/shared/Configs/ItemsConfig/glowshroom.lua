@@ -6,8 +6,8 @@ type TycoonProps = sharedtypes.TycoonProps
 return {
 	ItemId = "glowshroom",
 	DisplayName = "Glowing Mushroom",
-	Rate = 16, -- A base rate for the item
-	Price = 200,
+	Rate = 15, -- A base rate for the item
+	Price = 15000,
 	TierId = "uncommon",
 	Variations = { "none", "copper", "silver", "gold", "diamond", "strange" },
 	Entry = function(item: Item, player: Player)
@@ -22,28 +22,24 @@ return {
 		repeat
 			playeritemslots = ItemSlots.Collections[player]
 			task.wait()
-		-- warn("Waiting for playeritemslots")
 		until playeritemslots
 
-		local UCplacedItemUids = {}
-		for slot, UID in playeritemslots do
-			local placedItem = pd:GetItemFromUID(UID)
-			if not placedItem or placedItem.TierId ~= "uncommon" then
+		local UCItems = {}
+		for slot, itm in items do
+			local affectedItem = pd:GetItemFromUID(itm.UID)
+			if not affectedItem or affectedItem.TierId ~= "uncommon" then
 				continue
 			end
-			table.insert(UCplacedItemUids, UID)
+			table.insert(UCItems, itm.UID)
 		end
-		if #UCplacedItemUids <= 0 then
-			warn("No placed items")
+		if #UCItems <= 0 then
 			return
 		end
-		warn("Placed uncommon items", UCplacedItemUids)
-		item.Rate += 13 * #UCplacedItemUids
-		-- Fire events to update the client and game state
+		item.Rate += 13 * #UCItems
 		playeritemslots:FireChangedEvent()
 		Item.FireCreatedEvent(items, player)
 		local ItemUpdated: RemoteEvent = game.ReplicatedStorage.Shared.Events.ItemUpdated
 		ItemUpdated:FireClient(player, PlayerData.Collections[player].Items)
 	end,
-	ItemTip = [[<font thickness="2" color="#bbffbb">Entry</font>: This item gets 13/s for every uncommon item currently placed.]],
+	ItemTip = [[<font thickness="2" color="#bbffbb">Entry</font>: This generator gets 13/s for every UNCOMMON tier generators currently owned.]],
 } :: ItemConfig

@@ -15,6 +15,9 @@ PlaceItem.Name = "PlaceItem"
 local SellItems = Instance.new("RemoteEvent", Events)
 SellItems.Name = "SellItems"
 
+local SellItem = Instance.new("RemoteEvent", Events)
+SellItem.Name = "SellItem"
+
 local ItemSlotsUpdate = Instance.new("RemoteEvent", Events)
 ItemSlotsUpdate.Name = "ItemSlotsUpdate"
 

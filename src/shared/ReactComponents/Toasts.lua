@@ -92,6 +92,7 @@ local function Toast(props: {
 		Position = UDim2.new(0.5, 0, 0, 100),
 		LayoutOrder = props.LayoutOrder,
 		Active = false,
+		ZIndex = 31,
 	}, {
 		Label = React.createElement("TextLabel", {
 			RichText = true,
@@ -99,6 +100,7 @@ local function Toast(props: {
 			ref = textref,
 			Size = UDim2.new(1, 0, 1, 0),
 			BackgroundTransparency = 1,
+			ZIndex = 32,
 			TextStrokeTransparency = 0,
 			TextColor3 = props.color or Color3.fromRGB(235, 235, 235),
 			TextStrokeColor3 = Color3.new(0, 0, 0),
@@ -215,7 +217,7 @@ local function ToastProvider(props)
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		BackgroundTransparency = 1,
 		Active = false,
-		ZIndex = 10,
+		ZIndex = 30,
 	}, Flashes)
 
 	return React.createElement(ToastContext.Provider, {

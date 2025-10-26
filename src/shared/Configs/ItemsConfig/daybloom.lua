@@ -6,7 +6,7 @@ type TycoonProps = sharedtypes.TycoonProps
 return {
 	ItemId = "daybloom",
 	DisplayName = "Daybloom",
-	Rate = 9,
+	Rate = 1,
 	Price = 25,
 	TierId = "common",
 	Variations = { "none", "copper", "silver", "gold", "diamond", "strange" },
@@ -46,7 +46,7 @@ return {
 		if not randomItem then
 			return
 		end
-		randomItem.Rate = randomItem.Rate + 10
+		randomItem.Rate = randomItem.Rate + 3
 
 		playeritemslots:FireChangedEvent()
 		Item.FireCreatedEvent(items, player)
@@ -56,5 +56,5 @@ return {
 		TODO: Fire a Removed effect event, and differentiate with target: Random, select, or all
 		]]
 	end,
-	ItemTip = [[<font thickness ="2" color="#bbffbb">Entry</font>: If it is morning, adds 10/s to a random placed item]],
+	ItemTip = [[<font thickness ="2" color="#bbffbb">Entry</font>: If it is morning, adds 3/s to a random placed generator]],
 } :: ItemConfig

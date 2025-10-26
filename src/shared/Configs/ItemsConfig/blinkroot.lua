@@ -6,7 +6,7 @@ type TycoonProps = sharedtypes.TycoonProps
 return {
 	ItemId = "blinkroot",
 	DisplayName = "Blinkroot",
-	Rate = 5, -- A base rate for the item
+	Rate = 1, -- A base rate for the item
 	Price = 25,
 	TierId = "common",
 	Variations = { "none", "copper", "silver", "gold", "diamond", "strange" },
@@ -34,5 +34,5 @@ return {
 		local ItemUpdated: RemoteEvent = game.ReplicatedStorage.Shared.Events.ItemUpdated
 		ItemUpdated:FireClient(player, PlayerData.Collections[player].Items)
 	end,
-	ItemTip = [[<font thickness ="2" color="#bbffbb">Entry</font>: Adds 1/s to all owned items]],
+	ItemTip = [[<font thickness ="2" color="#bbffbb">Entry</font>: Adds 1/s to all owned generators]],
 } :: ItemConfig

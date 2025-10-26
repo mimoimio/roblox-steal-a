@@ -13,7 +13,7 @@ function RebirthService.Rebirth(player: Player)
 		end
 	end
 
-	pd:FireItemUpdateBindableEvent()
+	pd:FireBEChanged()
 	local ItemUpdated: RemoteEvent = game.ReplicatedStorage.Shared.Events.ItemUpdated
 	ItemUpdated:FireClient(player, PlayerData.Collections[player].Items)
 

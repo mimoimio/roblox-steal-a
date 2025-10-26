@@ -1,4 +1,5 @@
 local React = require(game.ReplicatedStorage.Packages.React)
+local e = React.createElement
 local Alyanum = require(game.ReplicatedStorage.Packages.Alyanum)
 local SpecialEventsConfig = require(game.ReplicatedStorage.Shared.Configs.SpecialEventsConfig)
 local TS = game:GetService("TweenService")
@@ -9,6 +10,8 @@ local function HUD(props)
 	local PlayerData = props.PlayerData or {}
 	local Resources = PlayerData.Resources or {}
 	local rate, setRate = React.useState(Resources.Rate)
+	local money, setMoney = React.useState(Resources.Money)
+	local clock, setClock = React.useState(game.Lighting.ClockTime)
 
 	-- Special events state
 	local specialEvents, setSpecialEvents = React.useState({})
@@ -24,19 +27,28 @@ local function HUD(props)
 		else
 			warn("no hudref", hudRef.current)
 		end
+		local Events = game.ReplicatedStorage.Shared.Events
+		local ResourcesUpdated: RemoteEvent = Events:WaitForChild("ResourcesUpdated")
+		local SpecialEvents: RemoteEvent = Events:WaitForChild("SpecialEvents")
+		local MoneyDisplayUpdate: UnreliableRemoteEvent = Events:WaitForChild("MoneyDisplayUpdate")
 
-		local ResourcesUpdated: RemoteEvent = game.ReplicatedStorage.Shared.Events:WaitForChild("ResourcesUpdated")
-		local rupdatec = ResourcesUpdated.OnClientEvent:Connect(function(resources: { Money: number, Rate: number })
-			setRate(resources.Rate)
-		end)
-
-		local SpecialEvents: RemoteEvent = game.ReplicatedStorage.Shared.Events:WaitForChild("SpecialEvents")
-		local seconn = SpecialEvents.OnClientEvent:Connect(function(events)
-			setSpecialEvents(events or {})
-		end)
-
+		local connections = {
+			rupdatec = ResourcesUpdated.OnClientEvent:Connect(function(resources: { Money: number, Rate: number })
+				setRate(resources.Rate)
+			end),
+			seconn = SpecialEvents.OnClientEvent:Connect(function(events)
+				setSpecialEvents(events or {})
+			end),
+			MoneyDisplayUpdate = MoneyDisplayUpdate.OnClientEvent:Connect(function(money, rate)
+				if not money then
+					return
+				end
+				setMoney(money)
+				setRate(rate)
+			end),
+		}
 		-- On first mount, invoke GetSpecialEvents
-		local GetSpecialEvents: RemoteFunction = game.ReplicatedStorage.Shared.Events:WaitForChild("GetSpecialEvents")
+		local GetSpecialEvents: RemoteFunction = Events:WaitForChild("GetSpecialEvents")
 		local ok, events = pcall(function()
 			return GetSpecialEvents:InvokeServer()
 		end)
@@ -45,19 +57,30 @@ local function HUD(props)
 		end
 
 		return function()
-			if rupdatec then
-				rupdatec:Disconnect()
-			end
-			if seconn then
-				seconn:Disconnect()
+			for i, conn in connections do
+				conn:Disconnect()
 			end
 		end
 	end, {})
 
-	local eventLabels = {
-		rounded = React.createElement(require(script.Parent.ui.rounded)),
+	React.useState(function()
+		local running = true
+		task.spawn(function()
+			while running do
+				local s = ([[%02d:%02d]]):format(game.Lighting.ClockTime, (game.Lighting.ClockTime % 1) * 60)
+				setClock(s)
+				task.wait(1)
+			end
+		end)
+		return function()
+			running = false
+		end
+	end, {})
 
-		UIListLayout = React.createElement("UIListLayout", {
+	local eventLabels = {
+		rounded = e(require(script.Parent.ui.rounded)),
+
+		UIListLayout = e("UIListLayout", {
 			SortOrder = "LayoutOrder",
 			FillDirection = Enum.FillDirection.Horizontal,
 			HorizontalAlignment = Enum.HorizontalAlignment.Center,
@@ -77,7 +100,7 @@ local function HUD(props)
 		)
 	end
 
-	eventLabels["eventId"] = React.createElement("TextLabel", {
+	eventLabels["eventId"] = e("TextLabel", {
 		Name = "EventLabel",
 		BackgroundTransparency = 1,
 		Font = "FredokaOne",
@@ -92,7 +115,7 @@ local function HUD(props)
 		LayoutOrder = eventCount,
 	})
 
-	return React.createElement("Frame", {
+	return e("Frame", {
 		Name = "HUD",
 		BackgroundTransparency = 01,
 		Size = UDim2.new(1, 0, 1, 0),
@@ -101,7 +124,7 @@ local function HUD(props)
 		ref = hudRef,
 		ZIndex = 0,
 	}, {
-		RightHud = React.createElement("Frame", {
+		RightHud = e("Frame", {
 			Name = "RightHud",
 			AnchorPoint = Vector2.new(1, 0.5),
 			Position = UDim2.new(1, 0, 0.5, 0),
@@ -109,10 +132,10 @@ local function HUD(props)
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 		}, {
-			UISizeConstraint = React.createElement("UISizeConstraint", {
+			UISizeConstraint = e("UISizeConstraint", {
 				MaxSize = Vector2.new(100, 300),
 			}),
-			UIListLayout = React.createElement("UIListLayout", {
+			UIListLayout = e("UIListLayout", {
 				SortOrder = "LayoutOrder",
 				FillDirection = Enum.FillDirection.Vertical,
 				HorizontalAlignment = Enum.HorizontalAlignment.Center,
@@ -121,7 +144,7 @@ local function HUD(props)
 				HorizontalFlex = "Fill",
 				Padding = UDim.new(0, 10),
 			}),
-			InventoryButton = React.createElement("ImageButton", {
+			InventoryButton = e("ImageButton", {
 				Name = "InventoryButton",
 				Position = UDim2.new(0.5, 0, 0, 0),
 				AnchorPoint = Vector2.new(0.5, 0),
@@ -130,8 +153,8 @@ local function HUD(props)
 				LayoutOrder = 1,
 				[React.Event.Activated] = props.OnInventoryButtonClick,
 			}, {
-				rounded = React.createElement(require(script.Parent.ui.rounded)),
-				TextLabel = React.createElement("TextLabel", {
+				rounded = e(require(script.Parent.ui.rounded)),
+				TextLabel = e("TextLabel", {
 					Position = UDim2.new(0.5, 0, 1, -8),
 					Size = UDim2.new(1, 0, 1, 0),
 					AnchorPoint = Vector2.new(0.5, 1),
@@ -142,7 +165,7 @@ local function HUD(props)
 					Active = false,
 					TextColor3 = Color3.new(1, 1, 1),
 				}),
-				AmountLabel = React.createElement("TextLabel", {
+				AmountLabel = e("TextLabel", {
 					Position = UDim2.new(0, 0, 0, 0),
 					Size = UDim2.new(0, 50, 0, 50),
 					AnchorPoint = Vector2.new(0.5, 0.5),
@@ -156,7 +179,7 @@ local function HUD(props)
 					TextColor3 = Color3.new(1, 1, 1),
 				}),
 			}),
-			SettingsButton = React.createElement("ImageButton", {
+			SettingsButton = e("ImageButton", {
 				Name = "SettingsButton",
 				Position = UDim2.new(0.5, 0, 0, 0),
 				AnchorPoint = Vector2.new(0.5, 0),
@@ -164,8 +187,8 @@ local function HUD(props)
 				BorderSizePixel = 0,
 				[React.Event.Activated] = props.OnSettingsButtonClick,
 			}, {
-				rounded = React.createElement(require(script.Parent.ui.rounded)),
-				TextLabel = React.createElement("TextLabel", {
+				rounded = e(require(script.Parent.ui.rounded)),
+				TextLabel = e("TextLabel", {
 					Position = UDim2.new(0.5, 0, 1, -8),
 					Size = UDim2.new(1, 0, 01, 0),
 					AnchorPoint = Vector2.new(0.5, 1),
@@ -177,7 +200,7 @@ local function HUD(props)
 					TextColor3 = Color3.new(1, 1, 1),
 				}),
 			}),
-			MusicButton = React.createElement("ImageButton", {
+			MusicButton = e("ImageButton", {
 				Name = "SettingsButton",
 				Position = UDim2.new(0.5, 0, 0, 0),
 				AnchorPoint = Vector2.new(0.5, 0),
@@ -186,8 +209,8 @@ local function HUD(props)
 				LayoutOrder = 2,
 				[React.Event.Activated] = props.OnMusicButtonClick,
 			}, {
-				rounded = React.createElement(require(script.Parent.ui.rounded)),
-				TextLabel = React.createElement("TextLabel", {
+				rounded = e(require(script.Parent.ui.rounded)),
+				TextLabel = e("TextLabel", {
 					Position = UDim2.new(0.5, 0, 1, -8),
 					Size = UDim2.new(1, 0, 01, 0),
 					AnchorPoint = Vector2.new(0.5, 1),
@@ -200,29 +223,73 @@ local function HUD(props)
 				}),
 			}),
 		}),
-		TopRightHud = React.createElement("Frame", {
+		TopRightHud = e("ImageLabel", {
 			Name = "TopRightHud",
-			AnchorPoint = Vector2.new(1, 0),
+			Image = "rbxassetid://136242854116857",
+			ScaleType = Enum.ScaleType.Slice,
+			SliceCenter = Rect.new(30, 30, 90, 90),
+			AnchorPoint = Vector2.new(01, 0),
 			Position = UDim2.new(1, 0, 0, 0),
-			Size = UDim2.new(0, 300, 0, 50),
+			AutomaticSize = Enum.AutomaticSize.XY,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 		}, {
-			rounded = React.createElement(require(script.Parent.ui.rounded)),
-			TextLabel = React.createElement("TextLabel", {
-				Position = UDim2.new(0.5, 0, 0, -8),
+			padding = e("UIPadding", {
+				PaddingTop = UDim.new(0, 12),
+				PaddingRight = UDim.new(0, 12),
+				PaddingLeft = UDim.new(0, 12),
+				PaddingBottom = UDim.new(0, 12),
+			}),
+			verticallist = e(require(script.Parent.ui.verticallist)),
+			TextLabel = e("TextLabel", {
+				Position = UDim2.new(0.5, 0, 0.5, 0),
 				AutomaticSize = Enum.AutomaticSize.XY,
-				AnchorPoint = Vector2.new(0.5, 0),
+				AnchorPoint = Vector2.new(0.5, 0.5),
 				BackgroundTransparency = 1,
 				Font = "FredokaOne",
 				TextSize = 14,
-				Text = "Money rate: " .. (rate and (Alyanum.new(rate):toString() .. "/s") or "..."),
+				TextStrokeTransparency = 0,
+				Text = "Money:"
+					.. (money and (Alyanum.new(money):toString() .. "/s") or "...")
+					.. "\nrate: "
+					.. (rate and (Alyanum.new(rate):toString() .. "/s") or "..."),
+				Active = false,
+				TextColor3 = Color3.new(1, 1, 1),
+			}),
+		}),
+		BotLeftHud = e("ImageLabel", {
+			Name = "TopRightHud",
+			Image = "rbxassetid://136242854116857",
+			ScaleType = Enum.ScaleType.Slice,
+			SliceCenter = Rect.new(30, 30, 90, 90),
+			AnchorPoint = Vector2.new(0, 1),
+			Position = UDim2.new(0, 0, 1, 0),
+			AutomaticSize = Enum.AutomaticSize.XY,
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+		}, {
+			padding = e("UIPadding", {
+				PaddingTop = UDim.new(0, 12),
+				PaddingRight = UDim.new(0, 12),
+				PaddingLeft = UDim.new(0, 12),
+				PaddingBottom = UDim.new(0, 12),
+			}),
+			verticallist = e(require(script.Parent.ui.verticallist)),
+			TextLabel = e("TextLabel", {
+				Position = UDim2.new(0.5, 0, 0.5, 0),
+				AutomaticSize = Enum.AutomaticSize.XY,
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				BackgroundTransparency = 1,
+				Font = "FredokaOne",
+				TextSize = 14,
+				TextStrokeTransparency = 0,
+				Text = clock,
 				Active = false,
 				TextColor3 = Color3.new(1, 1, 1),
 			}),
 		}),
 		-- Special event labels (direct children of HUD)
-		TopHud = React.createElement("Frame", {
+		TopHud = e("Frame", {
 			Name = "TopHud",
 			Position = UDim2.new(0.5, 0, 0, 0),
 			Size = UDim2.new(0, 200, 0, 50),
@@ -232,5 +299,4 @@ local function HUD(props)
 		}, eventLabels),
 	})
 end
-
 return HUD

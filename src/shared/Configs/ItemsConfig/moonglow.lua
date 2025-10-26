@@ -6,17 +6,19 @@ return {
 	ItemId = "moonglow",
 	DisplayName = "Moonglow",
 	Price = 40,
-	Rate = 6,
+	Rate = 1,
 	TierId = "common",
 	Variations = { "none", "copper", "silver", "gold", "diamond", "strange", "starlight" },
 	Growth = function(item: Item, player: Player)
 		local pd = require(game.ServerScriptService.Server.Classes.PlayerData).Collections[player]
 		local clock = require(game.ServerScriptService.Server.Services.Clock)
 		local PlayerData = require(game.ServerScriptService.Server.Classes.PlayerData)
-		if clock.IsMorning then
-			warn("NO MORNING")
+
+		local clocktime = game.Lighting.ClockTime
+		if not (clocktime < 6.5 and clocktime > 0) then
 			return
 		end
+
 		local Item = require(game.ServerScriptService.Server.Classes.Item)
 		local ItemSlots = require(game.ServerScriptService.Server.Classes.ItemSlots)
 		local items = pd.Items
@@ -31,13 +33,15 @@ return {
 		local max
 		for i, selectedItem in items do
 			warn("selectedItem", selectedItem.DisplayName)
-			selectedItem.Rate = selectedItem.Rate + 3
+			selectedItem.Rate = selectedItem.Rate + 1
 			max = i
 		end
-		warn("max", max)
+		-- warn("max", max)
 
-		playeritemslots:FireChangedEvent()
-		Item.FireCreatedEvent(items, player)
+		-- playeritemslots:FireChangedEvent()
+		-- Item.FireCreatedEvent(items, player)
+		pd:FireBEChanged()
+		warn("Increased")
 		local ItemUpdated: RemoteEvent = game.ReplicatedStorage.Shared.Events.ItemUpdated
 		ItemUpdated:FireClient(player, PlayerData.Collections[player].Items)
 		--[[
@@ -45,5 +49,5 @@ return {
 		Fire a Removed effect event, and differentiate with target: Random, select, or all
 		]]
 	end,
-	ItemTip = [[<font thickness ="2" color="#bbffbb">Growth</font>: If it is night, adds 3/s to all item]],
+	ItemTip = [[<font thickness ="2" color="#bbffbb">Growth</font>: If it is past midnight before dawn, adds 1/s to all item]],
 } :: ItemConfig

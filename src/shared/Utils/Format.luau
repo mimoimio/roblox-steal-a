@@ -6,6 +6,19 @@ local variationConfigs = require(game.ReplicatedStorage.Shared.Configs.Variation
 local tierConfigs = require(game.ReplicatedStorage.Shared.Configs.TiersConfig)
 local Alyanum = require(game.ReplicatedStorage.Packages.Alyanum)
 
+local EvalColorSequence = require(script.Parent.EvalColorSequence)
+local bigNumColors = {
+	Color3.new(1, 0.5, 0.6),
+	Color3.new(0.8, 0.7, 0.2),
+	Color3.new(0.2, 0.3, 1),
+}
+local sequences: { ColorSequenceKeypoint } = {}
+for i, color in bigNumColors do
+	warn((i - 1) / (#bigNumColors - 1), color)
+	table.insert(sequences, ColorSequenceKeypoint.new((i - 1) / (#bigNumColors - 1), color))
+end
+local bignumColorSequence = ColorSequence.new(sequences)
+
 function FormatItemLabelText(item: Item): string
 	local cfg = itemConfigs[item.ItemId]
 	local varcfg = variationConfigs[item.VariationId] or variationConfigs[((item.VariationId or "") :: string):lower()]
@@ -29,14 +42,39 @@ function FormatItemLabelText(item: Item): string
 		text = --
 			([[<font size="18">%s</font>
 <font color="#%s">%s</font> | <font color="#%s">%s</font>
-<font>%s/s</font>]]):format(name, varColor, varName, tierColor, tierName, rate)
+<font color="#%s>%s/s</font>]]):format(
+				name,
+				varColor,
+				varName,
+				tierColor,
+				tierName,
+				rateColor(item.Rate):ToHex(),
+				rate
+			)
 	else
 		text = --
 			([[<font>%s</font>
 <font color="#%s">%s</font>
-<font>%s/s</font>]]):format(name, tierColor, tierName, rate)
+<font color="#%s">%s/s</font>]]):format(name, tierColor, tierName, rateColor(item.Rate):ToHex(), rate)
 	end
 	return text
 end
 
-return { FormatItemLabelText = FormatItemLabelText }
+function rateColor(rate: number): Color3
+	local spectrum = math.clamp(math.log10(rate) / 308, 0, 1)
+	return EvalColorSequence(bignumColorSequence, spectrum)
+end
+-- local Alyanum = require(game.ReplicatedStorage.Packages.Alyanum)
+-- local rateColor = require(game.ReplicatedStorage.Shared.Utils.Format).rateColor
+-- local s = ""
+-- for i = 0, 400, 3 do
+-- 	local n = 10 ^ i
+-- 	s ..= ([[<font color="#%s">%s</font>]]):format(rateColor(n):ToHex(), "10^" .. i .. " = ")
+-- 	s ..= ([[<font color="#%s">%s/</font>]]):format(rateColor(n):ToHex(), Alyanum.new(n):toString()) .. "\n"
+-- end
+-- warn(s)
+
+return {
+	FormatItemLabelText = FormatItemLabelText,
+	rateColor = rateColor,
+}

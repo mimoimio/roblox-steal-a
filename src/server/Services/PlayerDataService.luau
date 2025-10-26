@@ -34,6 +34,7 @@ function PlayerDataService:LoadPlayerData(player: Player): PlayerData?
 	result = result or {}
 
 	local Resources = result.Resources or table.clone(DefaultPlayerData.Resources)
+	local Collector: number = result.Collector or DefaultPlayerData.Collector
 	local PlayerSettings = result.PlayerSettings or table.clone(DefaultPlayerData.PlayerSettings)
 	local Progress = result.Progress or table.clone(DefaultPlayerData.Progress)
 	local Items
@@ -49,6 +50,7 @@ function PlayerDataService:LoadPlayerData(player: Player): PlayerData?
 
 	PlayerData = {
 		Resources = Resources,
+		Collector = Collector,
 		PlayerSettings = PlayerSettings,
 		Progress = Progress,
 		Items = Items,

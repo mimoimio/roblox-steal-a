@@ -5,7 +5,7 @@ type TycoonProps = sharedtypes.TycoonProps
 return {
 	ItemId = "fireblossom",
 	DisplayName = "Fireblossom",
-	Rate = 8,
+	Rate = 1,
 	Price = 25,
 	TierId = "common",
 	Variations = { "none", "copper", "silver", "gold", "diamond", "strange" },
@@ -39,13 +39,13 @@ return {
 			warn("No random item")
 			return
 		end
-		randomItem.Rate += 5
+		randomItem.Rate += 3
 		playeritemslots:FireChangedEvent()
 		Item.FireCreatedEvent(pd.Items, player)
 		local ItemUpdated: RemoteEvent = game.ReplicatedStorage.Shared.Events.ItemUpdated
 		ItemUpdated:FireClient(player, PlayerData.Collections[player].Items)
 	end,
-	ItemTip = [[<font thickness ="2" color="#bbffbb">Sold</font>: add 5/s to a random placed item]],
+	ItemTip = [[<font thickness ="2" color="#bbffbb">Sold</font>: add 3/s to a random owned generator]],
 } :: ItemConfig
 
 --[[

@@ -3,6 +3,7 @@ local e = React.createElement
 local useEffect = React.useEffect
 local useRef = React.useRef
 local useState = React.useState
+local ProximityPromptService = game:GetService("ProximityPromptService")
 local UserInputService = game:GetService("UserInputService")
 
 type PlayerData = {
@@ -32,10 +33,7 @@ local Settings = require(script.Parent.Settings)
 local PlaceItem = require(script.Parent.PlaceItem)
 local SellItem = require(script.Parent.SellItem)
 local HUD = require(script.Parent.HUD)
-local MainShop = require(script.Parent.MainShopGui)
 local Music = require(script.Parent.Music)
-local Mustard = require(script.Parent.Mustard)
-local CutsceneController = require(script.Parent.CutsceneController)
 
 type InventoryProps = { PlayerData: PlayerData, InventoryOpen: boolean }
 type Panel = "none" | "inventory" | "settings" | "shop" | "mustard" | "music" | "placeitem"
@@ -62,7 +60,6 @@ local function Main(props)
 	local isMountedRef = useRef()
 	local PlaceItemOpen = activePanel == "placeitem"
 	local SellItemOpen = activePanel == "sellitem"
-	local MainShopOpen = activePanel == "mainshop"
 	local SettingsOpen = activePanel == "settings"
 	local InventoryOpen = activePanel == "inventory"
 	local MusicOpen = activePanel == "music"
@@ -113,7 +110,8 @@ local function Main(props)
 		local PlaceItemEvent: RemoteEvent = Events:WaitForChild("PlaceItem")
 		local SellItemsEvent: RemoteEvent = Events:WaitForChild("SellItems")
 		local MainShopEvent: RemoteEvent = Events:WaitForChild("MainShop")
-
+		local Ping: RemoteEvent = Events:WaitForChild("Ping")
+		local linvelConn
 		local connections = {
 			--[[ KEYBINDS ================================]]
 			keybindconnection = UserInputService.InputBegan:Connect(function(io, gp)
@@ -129,13 +127,68 @@ local function Main(props)
 					toggle("settings")
 				elseif io.KeyCode == Enum.KeyCode.M then
 					toggle("mustard")
-				elseif io.KeyCode == Enum.KeyCode.G then
-					toast.open("G")
-				elseif io.KeyCode == Enum.KeyCode.H then
-					toast.open("H")
-				elseif io.KeyCode == Enum.KeyCode.J then
-					toast.open("J")
+				elseif io.KeyCode == Enum.KeyCode.LeftShift then
+					warn("Shifted")
+
+					-- local p = game.Players.LocalPlayer
+					-- local char = p.Character or p.CharacterAdded:Wait()
+					-- local linVel = Instance.new("LinearVelocity", char.PrimaryPart)
+					-- local attachment = Instance.new("Attachment", char.PrimaryPart)
+					-- linVel.MaxForce = 100000
+					-- linVel.Attachment0 = attachment
+					-- local start = 1
+					-- if linvelConn then
+					-- 	linvelConn:Disconnect()
+					-- end
+					-- local iniVel = char.PrimaryPart.AssemblyLinearVelocity
+					-- warn(iniVel.Magnitude)
+					-- linvelConn = game:GetService("RunService").Stepped:Connect(function(t, dt)
+					-- 	start -= dt
+					-- 	linVel.VectorVelocity = ((char.PrimaryPart:GetPivot()).LookVector + Vector3.new(0, 0.5, 0))
+					-- 			* 100
+					-- 			* (math.max(start, 0))
+					-- 		+ char.Humanoid.MoveDirection * char.Humanoid.WalkSpeed
+					-- 		+ iniVel
+					-- 	iniVel = Vector3.zero
+					-- 	-- + Vector3.new(0, start - 1, 0) * workspace.Gravity
+					-- end)
+
+					-- task.delay(1 / 60, function()
+					-- 	if linvelConn then
+					-- 		linvelConn:Disconnect()
+					-- 	end
+					-- 	if linVel then
+					-- 		linVel:Destroy()
+					-- 	end
+					-- 	if attachment then
+					-- 		attachment:Destroy()
+					-- 	end
+					-- end)
 				end
+			end),
+
+			-- ping
+			Ping = Ping.OnClientEvent:Connect(function()
+				task.spawn(function()
+					local sound: Sound? = game.ReplicatedStorage.Shared.SFX.Ping:FindFirstChildWhichIsA("Sound")
+					if sound then
+						sound.Parent = game.Players.LocalPlayer
+						if not sound.IsLoaded then
+							sound.Loaded:Wait()
+						end
+						sound:Play()
+						sound.Ended:Wait()
+						sound.Parent = game.ReplicatedStorage.Shared.SFX.Ping
+					else
+						sound = Instance.new("Sound", game.Players.LocalPlayer)
+						if not sound.IsLoaded then
+							sound.Loaded:Wait()
+						end
+						sound:Play()
+						sound.Ended:Wait()
+						sound:Destroy()
+					end
+				end)
 			end),
 
 			--[[ PLAYER ITEMS UPDATE EVENT ================================]]
@@ -184,6 +237,7 @@ local function Main(props)
 				toggleStrictPanel("sellitem")
 				-- toggle("sellitem")
 			end),
+			--[[ MAIN SHOP ]]
 			mainshopconneciton = MainShopEvent.OnClientEvent:Connect(function()
 				toggleStrictPanel("mainshop")
 				-- toggle("mainshop")
@@ -304,12 +358,6 @@ local function Main(props)
 					setActivePanel("none")
 				end,
 			})
-		or MainShopOpen and e(MainShop, {
-			MainShopOpen = MainShopOpen,
-			close = function()
-				toggleStrictPanel("mainshop")
-			end,
-		})
 		or SettingsOpen and e(Settings, {
 			SettingsOpen = SettingsOpen,
 			PlayerData = PlayerData,
@@ -340,11 +388,6 @@ local function Main(props)
 		Position = UDim2.new(0, 0, 0, 0),
 		ZIndex = 1,
 	}, {
-		-- CutsceneController = React.createElement(CutsceneController, {
-		-- 	OnCutsceneStart = function()
-		-- 		setActivePanel("none")
-		-- 	end,
-		-- }),
 		Music = e(Music, {
 			MusicOpen = MusicOpen,
 			PlayerData = PlayerData,

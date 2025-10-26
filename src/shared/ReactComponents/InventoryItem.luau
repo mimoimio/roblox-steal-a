@@ -5,7 +5,7 @@ local TS = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local useToast = require(game.ReplicatedStorage.Shared.ReactComponents.Toasts).useToast
 local DEFAULT_TWEEN = 1
-local MOUNTED_SIZE = UDim2.new(1, 0, 1, 0)
+local MOUNTED_SIZE = UDim2.new(0.9, 0, 0.9, 0)
 
 local itemConfigs = require(game.ReplicatedStorage.Shared.Configs.ItemsConfig)
 local variationConfigs = require(game.ReplicatedStorage.Shared.Configs.VariationsConfig)
@@ -15,11 +15,10 @@ local FormatItemLabelText = require(game.ReplicatedStorage.Shared.Utils.Format).
 local function InventoryItem(props: { isMountedRef: { current: boolean } })
 	local frameRef = React.useRef(nil)
 	local labelRef = React.useRef(nil)
+	local tbRef = React.useRef(nil)
 	local Size: UDim2?, setSize = React.useState(UDim2.new(0, 0, 0, 0))
 	local tweenTime = props.TweenTime or DEFAULT_TWEEN
 	local toast = useToast()
-	local mouseEnter, setMouseEnter = React.useState(false)
-
 	local tooltipRef = React.useRef(nil)
 	local resconnRef = React.useRef(nil)
 	React.useEffect(function()
@@ -81,66 +80,34 @@ local function InventoryItem(props: { isMountedRef: { current: boolean } })
 	end, {})
 
 	React.useEffect(function()
-		-- Tooltip logic
-		local tip = itemConfigs[props.Item.ItemId] and itemConfigs[props.Item.ItemId].ItemTip
-		if not tip then
-			return
-		end
-		if tooltipRef.current then
-			tooltipRef.current:Destroy()
-		end
-
-		if mouseEnter then
-			local gui: ScreenGui = game.ReplicatedStorage.Shared.HoverCard:Clone()
-			gui.Card.Visible = false
-
-			local pos = UserInputService:GetMouseLocation()
-			gui.Card.ImageLabel.ItemTip.Text = tip
-			tooltipRef.current = gui
-			local fx, fy = pos.X + 12, pos.Y + 12
-			gui.Card.Position = UDim2.new(0, fx, 0, fy)
-
-			resconnRef.current = RunService.RenderStepped:Connect(function()
-				gui.Parent = game.Players.LocalPlayer.PlayerGui
-				pos = UserInputService:GetMouseLocation()
-
-				fx, fy = pos.X + 12, pos.Y + 12
-				local sizeX, sizeY = workspace.CurrentCamera.ViewportSize.X, workspace.CurrentCamera.ViewportSize.Y
-				local validX, validY = fx + gui.Card.AbsoluteSize.X < sizeX, fy + gui.Card.AbsoluteSize.Y < sizeY
-				fx, fy = validX and fx or pos.X - 12, validY and fy or pos.Y - 12
-				gui.Card.AnchorPoint = Vector2.new(validX and 0 or 1, validY and 0 or 1)
-				gui.Card.Position = UDim2.new(0, fx, 0, fy)
-				gui.Card.Visible = true
-			end)
+		if props.Selected == props.UID then
+			setSize(UDim2.new(1, 0, 1, 0))
 		end
 
 		return function()
-			if tooltipRef.current then
-				tooltipRef.current:Destroy()
-				tooltipRef.current = nil
-			end
-			if resconnRef.current then
-				resconnRef.current:Disconnect()
-				resconnRef.current = nil
-			end
+			setSize(MOUNTED_SIZE)
 		end
-	end, { mouseEnter })
+	end, { props.Selected })
+
+	React.useEffect(function()
+		if props.InventoryOpen and props.Selected then
+			return
+		end
+
+		setSize(MOUNTED_SIZE)
+
+		if tbRef.current ~= nil then
+			props.OnDeselect(tbRef.current)
+		end
+	end)
 
 	local text = FormatItemLabelText(props.Item)
-	return e("Frame", {
+	return e("TextButton", {
 		BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 1, 0),
 		ZIndex = 3,
-		[React.Event.MouseEnter] = itemConfigs[props.Item.ItemId]
-			and itemConfigs[props.Item.ItemId].ItemTip
-			and function(textbutton: TextButton, x, y)
-				setMouseEnter(true)
-			end,
-		[React.Event.MouseLeave] = itemConfigs[props.Item.ItemId]
-			and itemConfigs[props.Item.ItemId].ItemTip
-			and function()
-				setMouseEnter(false)
-			end,
+		ref = tbRef,
+		[React.Event.Activated] = props.OnSelect,
 	}, {
 		frame = e("ImageLabel", {
 			Size = Size,
@@ -152,10 +119,14 @@ local function InventoryItem(props: { isMountedRef: { current: boolean } })
 			Image = "rbxassetid://136242854116857",
 			ScaleType = Enum.ScaleType.Slice,
 			SliceCenter = Rect.new(30, 30, 90, 90),
-			ImageColor3 = props.Selected and Color3.new(1, 0, 0)
-				or props.Placed and Color3.new(1, 1, 0.6)
-				or Color3.new(1, 1, 1),
+			ImageColor3 = props.Placed and Color3.new(1, 1, 0.6) or Color3.new(1, 1, 1),
 		}, {
+			UIPadding = e("UIPadding", {
+				PaddingTop = UDim.new(0, 16),
+				PaddingRight = UDim.new(0, 16),
+				PaddingLeft = UDim.new(0, 16),
+				PaddingBottom = UDim.new(0, 16),
+			}),
 			TextLabel = e("TextLabel", {
 				Size = Size,
 				Position = UDim2.new(0.5, 0, 0.5, 0),
@@ -171,11 +142,44 @@ local function InventoryItem(props: { isMountedRef: { current: boolean } })
 				TextWrapped = true,
 				TextSize = 14 * (Size and Size.X and Size.X.Scale or 0),
 				RichText = true,
-				Text = text,
+				Text = text .. "\n" .. (itemConfigs[props.Item.ItemId] and itemConfigs[props.Item.ItemId].ItemTip),
 				TextColor3 = Color3.new(1, 1, 1),
 				ClipsDescendants = true,
 				ref = labelRef,
 			}, props.Children),
+			[props.UID] = e("ImageButton", {
+				-- AutomaticSize = Enum.AutomaticSize.XY,
+				Image = "rbxassetid://136242854116857",
+				ScaleType = Enum.ScaleType.Slice,
+				SliceCenter = Rect.new(30, 30, 90, 90),
+				ImageColor3 = Color3.new(0.807843, 0.141176, 0.141176),
+				Visible = props.Selected == props.UID,
+				Size = UDim2.new(0, 42, 0, 42),
+				BorderSizePixel = 0,
+				BackgroundTransparency = 1,
+				ZIndex = 10,
+				[React.Event.Activated] = props.sell,
+				Position = UDim2.new(1, 0, 0, 0),
+				AnchorPoint = Vector2.new(1, 0),
+			}, {
+				padding = e("UIPadding", {
+					PaddingTop = UDim.new(0, 4),
+					PaddingRight = UDim.new(0, 4),
+					PaddingLeft = UDim.new(0, 4),
+					PaddingBottom = UDim.new(0, 4),
+				}),
+				TextLabel = e("TextLabel", {
+					BackgroundTransparency = 1,
+					Active = false,
+					ZIndex = 11,
+					Text = "Sell",
+					Font = "FredokaOne",
+					TextColor3 = Color3.new(1, 1, 1),
+					TextScaled = true,
+					Size = UDim2.new(1, 0, 1, 0),
+				}),
+				-- Rounded = e(require(script.Parent.ui.rounded)),
+			}),
 		}),
 	})
 end

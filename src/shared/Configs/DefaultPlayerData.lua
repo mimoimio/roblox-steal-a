@@ -60,6 +60,7 @@ function DefaultPlayerData.Get()
 	}
 	return {
 		Resources = DEFAULT_RESOURCES,
+		Collector = 0,
 		PlayerSettings = DEFAULT_SETTINGS,
 		Progress = DEFAULT_PROGRESS,
 		Items = DEFAULT_ITEMS,

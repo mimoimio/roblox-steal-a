@@ -7,7 +7,7 @@ return {
 	ItemId = "sunpetal",
 	DisplayName = "Sun Petal",
 	Rate = 15, -- A base rate for the item
-	Price = 200,
+	Price = 15000,
 	TierId = "uncommon",
 	Variations = { "none", "copper", "silver", "gold", "diamond", "strange" },
 	Entry = function(item: Item, player: Player)

@@ -54,9 +54,7 @@ function Item:FireDeletedEvent()
 	ItemDeleted:Fire(PlayerData.Collections[owner].Items, owner)
 end
 function Item.FireCreatedEvent(self: Item, owner: Player)
-	warn("received", owner)
 	owner = owner or Item.Owners[self]
-	warn("processed", owner)
 	ItemCreated:Fire(PlayerData.Collections[owner].Items, owner)
 end
 function Item:FireSoldEvent(player: Player)
@@ -82,6 +80,7 @@ function Item.new(ItemId: string, Player: Player, VariationId: string?): Item?
 	self.VariationId = variation.VariationId
 	self.TierId = tier.TierId
 	self.Entry = nil
+	self.Price = itemConfig.Price
 	self.Merge = nil
 	self.Removed = nil
 	self.Variations = nil
@@ -101,20 +100,17 @@ function Item:Sell(player)
 	local pd: PlayerData = PlayerData.Collections[player]
 	local TycoonService = require(game.ServerScriptService.Server.Services.TycoonService)
 	local playersTycoon = TycoonService.GetTycoonFromPlayer:Invoke(player)
-	warn("selling,", playersTycoon)
 	for i, item: Item in pd.Items do
 		if item.UID == self.UID then
 			local itemConfig: ItemConfig = ItemsConfig[item.ItemId]
 			local removed = itemConfig and type(itemConfig.Removed) == "function" and itemConfig.Removed or nil
 
 			if removed then
-				warn("REMOVING", item.DisplayName)
 				removed(item, player)
 			end
-			warn("REMOVED")
 
 			table.remove(pd.Items, i)
-			pd.Resources.Money += self.Rate
+			pd.Resources.Money += math.floor(self.Price / 2)
 			Item.FireSoldEvent(item, player)
 
 			return

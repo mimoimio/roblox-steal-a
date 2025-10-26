@@ -277,6 +277,8 @@ end
 -- end
 
 function ItemSpawnService.start()
+	local Events = game.ReplicatedStorage.Shared.Events
+	local MoneyDisplayUpdate: UnreliableRemoteEvent = Events:WaitForChild("MoneyDisplayUpdate")
 	warn(itemConfigs)
 	local mdfolder = game.ReplicatedStorage.Shared.Models
 	for i, itemconfig in itemConfigs do
@@ -287,6 +289,7 @@ function ItemSpawnService.start()
 		local pp = Instance.new("ProximityPrompt", model)
 		pp.ActionText = itemconfig.Price or "-" .. " coins"
 		pp.ObjectText = itemconfig.DisplayName
+		pp.KeyboardKeyCode = Enum.KeyCode.F
 		task.delay(1, function()
 			model.PrimaryPart.Anchored = true
 		end)
@@ -298,6 +301,7 @@ function ItemSpawnService.start()
 				return
 			end
 			pd.Resources.Money = money
+			MoneyDisplayUpdate:FireClient(player, pd.Resources.Money, pd.Resources.Rate)
 
 			Item.new(itemconfig.ItemId, player)
 		end)

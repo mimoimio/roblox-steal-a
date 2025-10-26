@@ -35,19 +35,37 @@ local function Inventory(props: {
 	local Items: { Item } = PlayerData.Items or {}
 	local Phase: "opening" | "open" | "closing" | "closed", setPhase = React.useState("closed")
 	local visible, setVisible = React.useState(Phase ~= "closed")
+	local selected, setSelected = React.useState(nil)
 
 	local children = {
 		verticallist = e("UIGridLayout", {
-			CellSize = UDim2.new(0, 100, 0, 100),
+			CellSize = UDim2.new(0, 150, 0, 200),
 			CellPadding = UDim2.new(0, 8, 0, 8),
-			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			HorizontalAlignment = Enum.HorizontalAlignment.Left,
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
 	}
-
+	local sell = function(tb: TextButton)
+		local selectedItem = tb.Name;
+		(game.ReplicatedStorage.Shared.Events.SellItem :: RemoteEvent):FireServer(selectedItem)
+	end
 	local SFRef = React.useRef()
 	local childNum = 0
-
+	local function OnSelect(frame: Frame)
+		setSelected(function(prev)
+			if prev == frame.Name then
+				return nil
+			else
+				return frame.Name
+			end
+		end)
+	end
+	local function OnDeselect(frame: Frame)
+		setSelected(nil)
+	end
+	React.useEffect(function()
+		warn(selected)
+	end, { selected })
 	-- Abstracted per-item UI component with mount tween (see InventoryItem.luau)
 	local InventoryItem = require(script.Parent.InventoryItem)
 	for i, item in Items do
@@ -56,7 +74,7 @@ local function Inventory(props: {
 			continue
 		end
 		childNum += 1
-		children["item" .. item.UID] = e(InventoryItem, {
+		children[item.UID] = e(InventoryItem, {
 			key = item.UID,
 			UID = item.UID,
 			Item = item,
@@ -64,6 +82,10 @@ local function Inventory(props: {
 			isMountedRef = props.isMountedRef,
 			InventoryOpen = props.InventoryOpen,
 			Placed = props.PlacedItemUids[item.UID],
+			Selected = selected,
+			OnSelect = OnSelect,
+			OnDeselect = OnDeselect,
+			sell = sell,
 		}, {
 			rounded = e(require(script.Parent.ui.rounded)),
 		})

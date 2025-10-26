@@ -5,7 +5,7 @@ type TycoonProps = sharedtypes.TycoonProps
 return {
 	ItemId = "deathweed",
 	DisplayName = "Deathweed",
-	Rate = 10,
+	Rate = 1,
 	Price = 25,
 	TierId = "common",
 	Variations = { "none", "copper", "silver", "gold", "diamond", "strange" },
@@ -15,7 +15,7 @@ return {
 		local ItemSlots = require(game.ServerScriptService.Server.Classes.ItemSlots)
 		local PlayerData = require(game.ServerScriptService.Server.Classes.PlayerData)
 		Item.FireCreatedEvent(item, player)
-		local items = {  }
+		local items = {}
 
 		local playeritemslots
 		repeat
@@ -25,22 +25,28 @@ return {
 		until playeritemslots
 
 		for slot, UID in playeritemslots do
+			if UID == "none" then
+				continue
+			end
 			table.insert(items, UID)
 		end
 
 		if #items <= 0 then
-			-- warn("Items:", items)
+			warn("NO PLACED ITEMS1")
 			return
 		end
 		local randomplacedItem = pd:GetItemFromUID(items[Random.new():NextInteger(1, #items)])
 		if not randomplacedItem then
+			warn("NO PLACED ITEMS2", items)
 			return
 		end
-		randomplacedItem.Rate += 10
+		warn("randomplacedItem.Rate", randomplacedItem.Rate)
+		randomplacedItem.Rate += 3
+		warn("randomplacedItem.Rate", randomplacedItem.Rate)
 		playeritemslots:FireChangedEvent()
 		Item.FireCreatedEvent(items, player)
 		local ItemUpdated: RemoteEvent = game.ReplicatedStorage.Shared.Events.ItemUpdated
 		ItemUpdated:FireClient(player, PlayerData.Collections[player].Items)
 	end,
-	ItemTip = [[<font thickness ="2">Sold</font>: add 5/s to a random placed item]],
+	ItemTip = [[<font thickness ="2" color="#bbffbb">Sold</font>: add 3/s to a random placed generator]],
 } :: ItemConfig

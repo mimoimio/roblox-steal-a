@@ -6,7 +6,7 @@ return {
 	ItemId = "waterleaf",
 	DisplayName = "Waterleaf",
 	Price = 25,
-	Rate = 7,
+	Rate = 1,
 	TierId = "common",
 	Variations = { "none", "copper", "silver", "gold", "diamond", "strange" },
 	Growth = function(item: Item, player: Player)
@@ -24,22 +24,18 @@ return {
 		repeat
 			playeritemslots = ItemSlots.Collections[player]
 			task.wait()
-			warn("Waiting for playeritemslots")
 		until playeritemslots
 
-		-- for i, selectedItem in items do
-		-- selectedItem.Rate = selectedItem.Rate + 3
-		-- end
-
-		pd:GetItemFromUID(item.UID).Rate += 3
+		pd:GetItemFromUID(item.UID).Rate += 1
 
 		playeritemslots:FireChangedEvent()
 		Item.FireCreatedEvent(items, player)
 		local ItemUpdated: RemoteEvent = game.ReplicatedStorage.Shared.Events.ItemUpdated
 		ItemUpdated:FireClient(player, PlayerData.Collections[player].Items)
+		warn("GROWED")
 		--[[
 		TODO: Fire a Removed effect event, and differentiate with target: Random, select, or all
 		]]
 	end,
-	ItemTip = [[<font thickness ="2" color="#bbffbb">Growth</font>: increases rate by 3/s]],
+	ItemTip = [[<font thickness ="2" color="#bbffbb">Growth</font>: increases rate by 1/s]],
 } :: ItemConfig
