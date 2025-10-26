@@ -37,7 +37,10 @@ local function Item(props: {
 				:ToWorldSpace(workspace.OriginalBase.RootArea:GetPivot():ToObjectSpace(model:GetPivot()))
 			button:PivotTo(cf)
 			button.Parent = workspace;
-			(button.PrimaryPart.BillboardGui.TextLabel :: TextLabel).Text = props.ItemId .. "[$" .. props.Price .. "]"
+			(button.PrimaryPart.BillboardGui.TextLabel :: TextLabel).Text = (props.DisplayName or props.ItemId)
+				.. "-[$"
+				.. props.Price
+				.. "]"
 			local touched = false
 			button.PrimaryPart.Touched:Connect(function(part: Part)
 				if part.Name ~= "HumanoidRootPart" and part.Parent:FindFirstChild("Humanoid") then
@@ -210,6 +213,7 @@ local function ItemRenderer()
 			key = itemConfig.ItemId,
 			Owned = owned,
 			ItemId = itemConfig.ItemId,
+			DisplayName = itemConfig.DisplayName,
 			Price = itemConfig.Price,
 			RootArea = workspace.EmptyBase.RootArea,
 			BuyButton = BuyButton,
