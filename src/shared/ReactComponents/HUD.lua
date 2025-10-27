@@ -13,6 +13,25 @@ local function HUD(props)
 	local money, setMoney = React.useState(Resources.Money)
 	local clock, setClock = React.useState(game.Lighting.ClockTime)
 
+	-- Stopwatch state and effect (must be inside HUD for React to be defined)
+	local stopwatch, setStopwatch = React.useState("00:00")
+	React.useEffect(function()
+		local running = true
+		local elapsed = 0
+		task.spawn(function()
+			while running do
+				local mins = math.floor(elapsed / 60)
+				local secs = elapsed % 60
+				setStopwatch(string.format("%02d:%02d", mins, secs))
+				task.wait(1)
+				elapsed += 1
+			end
+		end)
+		return function()
+			running = false
+		end
+	end, {})
+
 	-- Special events state
 	local specialEvents, setSpecialEvents = React.useState({})
 
@@ -284,6 +303,18 @@ local function HUD(props)
 				TextSize = 14,
 				TextStrokeTransparency = 0,
 				Text = clock,
+				Active = false,
+				TextColor3 = Color3.new(1, 1, 1),
+			}),
+			StopwatchLabel = e("TextLabel", {
+				Position = UDim2.new(0.5, 0, 1, 0),
+				AutomaticSize = Enum.AutomaticSize.XY,
+				AnchorPoint = Vector2.new(0.5, 1),
+				BackgroundTransparency = 1,
+				Font = "FredokaOne",
+				TextSize = 14,
+				TextStrokeTransparency = 0,
+				Text = stopwatch,
 				Active = false,
 				TextColor3 = Color3.new(1, 1, 1),
 			}),
