@@ -246,6 +246,10 @@ local function Main(props)
 			--[[ ITEM SLOTS CHANGED EVENT ================================]]
 			itemslotschanged = ItemSlotsUpdate.OnClientEvent:Connect(function(ItemSlots: { [string]: string })
 				setPlayerData(function(prev: PlayerData)
+					if not prev then
+						return game.ReplicatedStorage.Shared.Events:WaitForChild("GetPlayerData"):InvokeServer()
+					end
+
 					local clone = table.clone(prev)
 					clone.ItemSlots = ItemSlots
 					return clone
@@ -346,7 +350,7 @@ local function Main(props)
 						-- warn("No SubmitRef")
 					end
 				end,
-				PlacedItemUids = PlayerData.ItemSlots and (function()
+				PlacedItemUids = PlayerData and PlayerData.ItemSlots and (function()
 					local PlacedItemUids = {}
 					for slot, itemuid in PlayerData.ItemSlots do
 						PlacedItemUids[itemuid] = true

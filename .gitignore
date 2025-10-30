@@ -1,7 +1,8 @@
 # Project place file
 /react-item-renderer.rbxlx
 
-/src/pluginstorage
+/src/pluginstorage/tim plugin v2/Packages
+/src/pluginstorage/tim plugin v3/Packages
 # Roblox Studio lock files
 /*.rbxlx.lock
 /*.rbxl.lock

@@ -1,5 +1,6 @@
 local Item = require(game.ServerScriptService.Server.Classes.Item)
 local PlayerData = require(game.ServerScriptService.Server.Classes.PlayerData)
+local PlayerDataService = require(game.ServerScriptService.Server.Services.PlayerDataService)
 
 local RemoteEventsService = {}
 
@@ -30,7 +31,8 @@ function RemoteEventsService.initialize()
 	end
 	RemoteEventsService.isInitialized = true
 	GetPlayerData.OnServerInvoke = function(player)
-		return PlayerData.Collections[player]
+		local profile = PlayerDataService:GetProfile(player)
+		return profile and profile.Data
 	end
 
 	GetItems.OnServerInvoke = function(player)

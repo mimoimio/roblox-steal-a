@@ -1,6 +1,6 @@
 local sharedtypes = require(game.ReplicatedStorage.Shared.types)
 type Item = sharedtypes.Item
-type PlayerData = sharedtypes.PlayerData
+export type PlayerData = sharedtypes.PlayerData
 type ItemConfig = sharedtypes.ItemConfig
 
 local PlayerDataService = require(game.ServerScriptService.Server.Services.PlayerDataService)
@@ -23,6 +23,7 @@ PlayerData.Changed = Changed.Event
 
 function PlayerData.new(player: Player): PlayerData?
 	local savedPD = PlayerDataService:LoadPlayerData(player) -- fetches saved pd or default. nil if DataStore error
+	warn("savedPD", savedPD)
 	if not savedPD then
 		return
 	end

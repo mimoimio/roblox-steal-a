@@ -3,6 +3,7 @@ local e = React.createElement
 local Alyanum = require(game.ReplicatedStorage.Packages.Alyanum)
 local SpecialEventsConfig = require(game.ReplicatedStorage.Shared.Configs.SpecialEventsConfig)
 local TS = game:GetService("TweenService")
+local Counter = require(script.Parent.counter)
 
 local function HUD(props)
 	local hudRef = React.useRef()
@@ -143,6 +144,7 @@ local function HUD(props)
 		ref = hudRef,
 		ZIndex = 0,
 	}, {
+		-- Counter = e(Counter),
 		RightHud = e("Frame", {
 			Name = "RightHud",
 			AnchorPoint = Vector2.new(1, 0.5),

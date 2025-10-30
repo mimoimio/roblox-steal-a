@@ -34,7 +34,7 @@ return {
 			warn("No placed items")
 			return
 		end
-		local randomItem = pd:GetItemFromUID(placedItemUids[Random.new():NextInteger(1, #placedItemUids)])
+		local randomItem = pd.Items[Random.new():NextInteger(1, #pd.Items)]
 		if not randomItem then
 			warn("No random item")
 			return

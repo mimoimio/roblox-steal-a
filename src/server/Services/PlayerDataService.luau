@@ -1,96 +1,206 @@
-local sharedtypes = require(game.ReplicatedStorage.Shared.types)
+-- src/server/Services/PlayerDataService.luau (Corrected for ProfileStore API)
+
+local Players = game:GetService("Players")
+local ServerStorage = game:GetService("ServerStorage")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- 1. Require necessary modules
+local ProfileStoreModule = require(game.ServerScriptService.Server.Services.ProfileStore) -- Adjust path if needed
+local sharedtypes = require(ReplicatedStorage.Shared.types)
+local DefaultPlayerDataConfig = require(ReplicatedStorage.Shared.Configs.DefaultPlayerData)
+
+-- Define types locally
 type Item = sharedtypes.Item
 type PlayerData = sharedtypes.PlayerData
 type ItemConfig = sharedtypes.ItemConfig
+type Profile = ProfileStoreModule.Profile<PlayerData> -- Typed Profile object
 
-local DatastoreService = game:GetService("DataStoreService")
-local PlayerDataStore = DatastoreService:GetDataStore("Player")
-local DefaultPlayerData = require(game.ReplicatedStorage.Shared.Configs.DefaultPlayerData)
+-- 2. Define the Profile Template
+local PROFILE_TEMPLATE: PlayerData = {
+	Resources = DefaultPlayerDataConfig.Resources,
+	Collector = DefaultPlayerDataConfig.Collector,
+	PlayerSettings = DefaultPlayerDataConfig.PlayerSettings,
+	Progress = DefaultPlayerDataConfig.Progress,
+	Items = DefaultPlayerDataConfig.Items,
+	ItemSlots = DefaultPlayerDataConfig.ItemSlots,
+	OwnedItems = {},
+	UnlockedItems = {
+		["floor"] = true,
+	},
+}
 
+-- 3. Create the ProfileStore object using New()
+local PlayerProfileStore = ProfileStoreModule.New(
+	"Player", -- Your DataStore name
+	PROFILE_TEMPLATE
+)
+
+-- 4. Cache for active player profiles on this server
+local Profiles: { [Player]: Profile } = {}
+
+-- Service module to return
 local PlayerDataService = {}
 
+--[[
+	Retrieves the currently active Profile for a player on this server.
+	Returns nil if the player's data isn't loaded or managed by this server.
+]]
+function PlayerDataService:GetProfile(player: Player): Profile?
+	local startTime = os.clock()
+	local timeout = 5 -- seconds
+
+	repeat
+		local profile = Profiles[player]
+		if profile then
+			return profile
+		end
+		task.wait(0.1)
+	until os.clock() - startTime > timeout
+
+	return nil
+end
+
+-- [[ --- MODIFIED FUNCTIONS --- ]]
+
+-- LoadPlayerData remains similar, but returns the profile's data table
 function PlayerDataService:LoadPlayerData(player: Player): PlayerData?
-	warn(player.UserId)
-	local PlayerData = {}
-	local ok: boolean, result: PlayerData?
+	local profile = Profiles[player] -- Check if already loaded
 
-	for i = 1, 5 do
-		ok, result = pcall(function()
-			return PlayerDataStore:GetAsync(player.UserId)
+	while not profile do
+		profile = Profiles[player] -- Check if already loaded
+		task.wait()
+	end
+
+	warn("profile.Data", profile.Data)
+
+	return profile.Data
+
+	-- -- If not loaded, attempt to start a session (this part is from the previous example)
+	-- local profileKey = tostring(player.UserId)
+	-- profile = PlayerProfileStore:StartSessionAsync(profileKey)
+	-- warn("profile", profile)
+	-- if profile then
+	-- 	-- ... (rest of the setup from OnPlayerAdded: AddUserId, Reconcile, Cleanup, ListenToRelease) ...
+	-- 	Profiles[player] = profile -- Add to cache
+	-- 	return profile.Data -- Return the data table
+	-- else
+	-- 	player:Kick("Failed to load your data. Please try rejoining.")
+	-- 	return nil
+	-- end
+end
+
+-- SavePlayerData now just releases the profile, saving the cached data automatically
+function PlayerDataService:SavePlayerData(player: Player)
+	local profile = Profiles[player]
+	if profile then
+		-- Clean up runtime data *before* releasing
+		if profile.Data.Items then
+			for _, item: Item in profile.Data.Items do
+				item.Entry = nil
+				item.Removed = nil
+				item.Merged = nil
+			end
+		end
+		-- Release tells ProfileStore to save the profile.Data table
+		profile:EndSession()
+		warn(`SavePlayerData called: Releasing profile for {player.Name}`)
+	else
+		warn(`SavePlayerData called for {player.Name}, but no active profile found.`)
+	end
+end
+
+-- Function to handle when a player joins the game
+local function OnPlayerAdded(player: Player)
+	local profileKey = tostring(player.UserId) -- Use UserId as the key
+
+	-- Load and session-lock the profile asynchronously
+	local profile: Profile? = PlayerProfileStore:StartSessionAsync(profileKey)
+	warn("profile", profile)
+	if profile then
+		-- Profile successfully loaded and locked!
+
+		-- Add GDPR compliance UserIds (Recommended)
+		profile:AddUserId(player.UserId)
+
+		-- Fill in missing data fields from the template
+		profile:Reconcile()
+
+		-- Clean up any runtime-only data
+		if profile.Data.Items then
+			for _, item: Item in profile.Data.Items do
+				item.Entry = nil
+				item.Removed = nil
+				item.Merged = nil
+			end
+		end
+
+		-- Store the active profile in the cache
+		Profiles[player] = profile
+		warn(`Profile loaded successfully for {player.Name} ({player.UserId})`)
+
+		-- Set up a function to run when the session ends
+		-- This replaces ListenToRelease from ProfileService
+		profile.OnSessionEnd:Connect(function()
+			Profiles[player] = nil -- Remove from cache
+			warn(`Profile session ended for {player.Name} ({player.UserId})`)
+			-- Kick the player to prevent data issues if the session ended unexpectedly
+			player:Kick("Your data session has ended. Please rejoin.")
 		end)
-		if ok then
-			break
-		else
-			warn("Failed to load player data:", result, "retrying...")
-			task.wait()
+
+		-- Now you can access profile.Data table to read/write player data
+		-- Example: Let other services know data is ready
+		-- game.ServerStorage.PlayerDataLoaded:Fire(player, profile.Data)
+	else
+		-- The profile couldn't be loaded
+		warn(`Critical error: Failed to load profile for {player.Name} ({player.UserId}). Kicking.`)
+		player:Kick("Failed to load your data. Please try rejoining the server.")
+	end
+end
+
+-- Function to handle when a player leaves the game
+local function OnPlayerRemoving(player: Player)
+	local profile = Profiles[player]
+	if profile then
+		-- End the session - this saves the data and unlocks the session
+		profile:EndSession()
+		warn(`Ending session profile for {player.Name} ({player.UserId}) on leave.`)
+	end
+end
+
+-- Function to handle server shutdown
+local function OnShutdown()
+	warn("Server shutting down. Ending sessions for all active player profiles...")
+	local startTime = os.clock()
+
+	-- Iterate through all active profiles and end sessions concurrently
+	local threads = {}
+	for player, profile in pairs(Profiles) do
+		-- Check if the profile session is still active before trying to end it
+		if profile:IsActive() then -- IsActive() is still valid
+			table.insert(
+				threads,
+				task.spawn(function()
+					profile:EndSession() -- Yields until saved and released
+					warn(`Profile session for {player.Name} ended during shutdown.`)
+				end)
+			)
 		end
 	end
 
-	if not ok then
-		warn("Critical error: Failed to load player data")
-		return nil
+	-- Wait for all end session threads to complete
+	for _, thread in ipairs(threads) do
+		task.wait(thread) -- Wait for each coroutine to finish
 	end
 
-	result = result or {}
-
-	local Resources = result.Resources or table.clone(DefaultPlayerData.Resources)
-	local Collector: number = result.Collector or DefaultPlayerData.Collector
-	local PlayerSettings = result.PlayerSettings or table.clone(DefaultPlayerData.PlayerSettings)
-	local Progress = result.Progress or table.clone(DefaultPlayerData.Progress)
-	local Items
-	if result.Items then
-		Items = result.Items
-	else
-		Items = {}
-		for i, item in DefaultPlayerData.Items do
-			table.insert(Items, table.clone(item))
-		end
-	end
-	local ItemSlots = result.ItemSlots or table.clone(DefaultPlayerData.ItemSlots)
-
-	PlayerData = {
-		Resources = Resources,
-		Collector = Collector,
-		PlayerSettings = PlayerSettings,
-		Progress = Progress,
-		Items = Items,
-		ItemSlots = ItemSlots,
-	}
-	return PlayerData
+	local duration = os.clock() - startTime
+	warn(`All profile sessions ended. Shutdown process took {string.format("%.2f", duration)} seconds.`)
 end
 
-function PlayerDataService:SavePlayerData(player: Player, data: PlayerData)
-	-- cleanup functions from datastore
-	warn("SAVING")
-	for i, c: Item in data.Items do
-		c.Entry = nil
-		c.Removed = nil
-		c.Merged = nil
-	end
-	warn("After cleaned up funciton")
+-- Connect Player events
+Players.PlayerAdded:Connect(OnPlayerAdded)
+Players.PlayerRemoving:Connect(OnPlayerRemoving)
 
-	local ok, err = pcall(function()
-		warn("SAved?")
-		warn(PlayerDataStore, PlayerDataStore.SetAsync, player.UserId, data)
-		PlayerDataStore:SetAsync(player.UserId, data)
-		warn("SAved!")
-	end)
-	if not ok then
-		warn("Failed to SetAsync PlayerData", err)
-		warn("PlayerData", data)
-		return
-	else
-		warn("Saved!", data)
-	end
-end
-
-function onShutdown()
-	local PlayerData = require(game.ServerScriptService.Server.Classes.PlayerData)
-	for i, player in game.Players:GetPlayers() do
-		PlayerDataService:SavePlayerData(player, PlayerData.Collections[player])
-	end
-end
-
-game:BindToClose(onShutdown)
+-- Bind the shutdown function
+game:BindToClose(OnShutdown)
 
 return PlayerDataService

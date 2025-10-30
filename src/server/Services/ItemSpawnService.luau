@@ -300,10 +300,12 @@ function ItemSpawnService.start()
 			if money <= 0 then
 				return
 			end
+			if not Item.new(itemconfig.ItemId, player) then
+				return
+			end
+
 			pd.Resources.Money = money
 			MoneyDisplayUpdate:FireClient(player, pd.Resources.Money, pd.Resources.Rate)
-
-			Item.new(itemconfig.ItemId, player)
 		end)
 	end
 end

@@ -25,7 +25,6 @@ local FormatItemLabelText = require(game.ReplicatedStorage.Shared.Utils.Format).
 
 local TycoonService = {}
 local ItemSlots = require(game.ServerScriptService.Server.Classes.ItemSlots)
-local PlayerDataService = require(game.ServerScriptService.Server.Services.PlayerDataService)
 local Item = require(game.ServerScriptService.Server.Classes.Item)
 
 --[[======================================================================================================================================================================================================]]
@@ -295,10 +294,7 @@ local function Tycoon(props: TycoonProps)
 			return
 		end
 
-		local ownerBoard = plot:FindFirstChild("OwnerBoard", true)
-		warn("ownerBoard", ownerBoard)
-		local CollectButton: Part = plot:FindFirstChild("CollectButton", true)
-		warn("CollectButton", CollectButton)
+		local ownerBoard = plot:FindFirstChild("OwnerBoard")
 		if not ownerBoard or not ownerBoard:IsA("Part") then
 			return
 		end
@@ -335,54 +331,8 @@ local function Tycoon(props: TycoonProps)
 		local thumbSize = Enum.ThumbnailSize.Size420x420
 		local thumbUrl, _ = Players:GetUserThumbnailAsync(player.UserId, thumbType, thumbSize)
 		imageLabel.Image = thumbUrl
-		warn("CollectButton.Touched", CollectButton.Touched)
-		local touchconn = CollectButton.Touched:Connect(function(part)
-			warn("Touched")
-			local char = part:FindFirstAncestor(player.Name)
-			if not char then
-				warn("NO char")
-				return
-			end
-			local p = game.Players:GetPlayerFromCharacter(char)
-			if not p and p ~= player then
-				warn("NO player ")
-				return
-			end
-			local profile = PlayerDataService:GetProfile(player)
-			if not profile then
-				warn("NO profile")
-				return
-			end
-			profile.Data.Resources.Money += profile.Data.Collector
-			profile.Data.Collector = 0
-			-- Fire unreliable money/rate update for HUD display
-			local MoneyDisplayUpdate = game.ReplicatedStorage.Shared.Events:FindFirstChild("MoneyDisplayUpdate")
-			if not MoneyDisplayUpdate then
-				MoneyDisplayUpdate = Instance.new("RemoteEvent")
-				MoneyDisplayUpdate.Name = "MoneyDisplayUpdate"
-				MoneyDisplayUpdate.Parent = game.ReplicatedStorage.Shared.Events
-			end
-			-- Only send money/rate, not full PlayerData
-			MoneyDisplayUpdate:FireClient(props.Player, profile.Data.Resources.Money, resourcesRef.current.Rate or 0)
-			local textlabel = props.Plot
-				and props.Plot.Collector
-				and props.Plot.Collector:FindFirstChild("CollectDisplay") :: Model
-				and props.Plot.Collector.CollectDisplay:FindFirstChild("SurfaceGui")
-				and props.Plot.Collector.CollectDisplay.SurfaceGui:FindFirstChild("TextLabel")
-			if textlabel and textlabel:IsA("TextLabel") then
-				textlabel.Text = "Money: "
-					.. "0"
-					.. "\nRate: "
-					.. Alyanum.new(resourcesRef.current.Rate or 0):toString()
-			else
-				warn("No textlabel")
-			end
-		end)
 
 		return function()
-			if touchconn then
-				touchconn:Disconnect()
-			end
 			surfaceGui:Destroy()
 		end
 	end, { props.Plot, props.Player })
@@ -568,7 +518,6 @@ local function Tycoon(props: TycoonProps)
 		if placed[item.UID] then
 			placedItems[item.UID] = item
 			local slotNum = placed[item.UID]
-
 			children[slotNum] = e(TycoonItem, {
 				key = slotNum,
 				SlotNum = slotNum,
@@ -617,10 +566,6 @@ local function Tycoon(props: TycoonProps)
 		rate += item.Rate
 	end
 
-	for itemrendererItemId, v in pd.OwnedItems do
-		rate += 5
-	end
-
 	useEffect(function()
 		resourcesRef.current.Rate = rate
 		PlayerData.Collections[props.Player].Resources.Rate = rate
@@ -654,12 +599,18 @@ local function Tycoon(props: TycoonProps)
 			while running do
 				-- warn("ran")
 				task.wait(1)
-				local profile = PlayerDataService:GetProfile(props.Player)
-				if not profile then
-					continue
-				end
 				if resourcesRef.current.Rate >= 0 then
-					local sum = profile.Data.Collector + resourcesRef.current.Rate
+					local sum = resourcesRef.current.Money + resourcesRef.current.Rate
+
+					-- Fire unreliable money/rate update for HUD display
+					local MoneyDisplayUpdate = game.ReplicatedStorage.Shared.Events:FindFirstChild("MoneyDisplayUpdate")
+					if not MoneyDisplayUpdate then
+						MoneyDisplayUpdate = Instance.new("RemoteEvent")
+						MoneyDisplayUpdate.Name = "MoneyDisplayUpdate"
+						MoneyDisplayUpdate.Parent = game.ReplicatedStorage.Shared.Events
+					end
+					-- Only send money/rate, not full PlayerData
+					MoneyDisplayUpdate:FireClient(props.Player, sum, resourcesRef.current.Rate or 0)
 					local textlabel = props.Plot
 						and props.Plot.Collector
 						and props.Plot.Collector:FindFirstChild("CollectDisplay") :: Model
@@ -673,7 +624,7 @@ local function Tycoon(props: TycoonProps)
 					else
 						warn("No textlabel")
 					end
-					profile.Data.Collector = sum
+					resourcesRef.current.Money = sum
 				end
 			end
 		end)
@@ -687,7 +638,7 @@ end
 
 --[[======================================================================================================================================================================================================]]
 
--- MANAGES ALL TYCOON
+-- MANAGES EVERY PLAYER'S TYCOON
 local function TycoonApp(props)
 	local tycoons: { [Player]: TycoonProps }, setTycoons = useState({} :: { [Player]: TycoonProps })
 	local tycoonsRef = useRef({})
@@ -711,26 +662,24 @@ local function TycoonApp(props)
 				local newTycoons = table.clone(prev)
 				local Plot = getPlot()
 				PlayerPlot[player] = Plot
-				-- local cSet = function()
-				-- 	local char = player.Character or player.CharacterAdded:Wait()
-				-- 	player.CharacterAdded:Connect(function(cmodel: Model)
-				-- 		warn("ADDED", cmodel)
-				-- 		setTycoons(function(prev)
-				-- 			local clone = table.clone(prev)
-				-- 			clone[player].Character = cmodel
-				-- 			return clone
-				-- 		end)
-				-- 	end)
-				-- 	setTycoons(function(prev)
-				-- 		local clone = table.clone(prev)
-				-- 		clone[player].Character = char
-				-- 		return clone
-				-- 	end)
-				-- 	char:PivotTo(Plot.PrimaryPart:GetPivot() + Vector3.new(0, 10, 0))
-				-- end
-				-- task.spawn(cSet)
-
-				--[[ dont need to set character props for now]]
+				local cSet = function()
+					local char = player.Character or player.CharacterAdded:Wait()
+					player.CharacterAdded:Connect(function(cmodel: Model)
+						warn("ADDED", cmodel)
+						setTycoons(function(prev)
+							local clone = table.clone(prev)
+							clone[player].Character = cmodel
+							return clone
+						end)
+					end)
+					setTycoons(function(prev)
+						local clone = table.clone(prev)
+						clone[player].Character = char
+						return clone
+					end)
+					char:PivotTo(Plot.PrimaryPart:GetPivot() + Vector3.new(0, 10, 0))
+				end
+				task.spawn(cSet)
 
 				local playersItemSlots = getItemSlots(player) :: ItemSlots?
 

@@ -1,30 +1,65 @@
+local Alyanum = require(game.ReplicatedStorage.Packages.Alyanum)
 local React = require(game.ReplicatedStorage.Packages.React)
+local ReactRoblox = require(game.ReplicatedStorage.Packages.ReactRoblox)
 local e = React.createElement
 local useEffect = React.useEffect
 local useState = React.useState
 local useRef = React.useRef
 
 local Dummies = require(script.Parent.Dummies)
+local PlayerDataService = require(game.ServerScriptService.Server.Services.PlayerDataService)
+local PlayerData = require(game.ServerScriptService.Server.Classes.PlayerData)
 local ICDummies = Dummies.ItemConfigs
 local PDDummy = Dummies.PlayerData
+local ProfileStore = require(game.ServerScriptService.Server.Services.ProfileStore)
+
+type PlayerData = PlayerData.PlayerData
+type Profile = ProfileStore.Profile<PlayerData>
+
+local Plots = workspace.Plots:GetChildren()
+local PlayerPlot = {}
+
+local function getPlot(): Model?
+	while #Plots <= 0 do
+		warn("waiting for plots", Plots)
+		Plots = workspace.Plots:GetChildren()
+		task.wait()
+	end
+	return table.remove(Plots, #Plots)
+end
+
+local function addPlot(plot: Model): boolean?
+	table.insert(Plots, plot)
+	return true
+end
+
+local function getPlotFromPlayer(player: Player): Model?
+	return PlayerPlot[player]
+end
 
 local function Item(props: {
 	Owned: boolean,
 	ItemId: string,
+	Price: number,
 	RootArea: Part,
+	Profile: Profile,
+	triggerSetPlayer: () -> nil,
 	BuyButton: (ItemId: string) -> nil,
 })
 	useEffect(function()
 		local button: Model, model: Model
 		if props.Owned then
 			model = Dummies:GetModelFromItemId(props.ItemId)
-
 			local cf = props.RootArea
 				:GetPivot()
 				:ToWorldSpace(workspace.OriginalBase.RootArea:GetPivot():ToObjectSpace(model:GetPivot()))
 			model:PivotTo(cf)
 			model.Parent = workspace
+			for i, itemId in ICDummies[props.ItemId].Unlocks or {} do
+				props.Profile.Data.UnlockedItems[itemId] = true
+			end
 			game.ReplicatedStorage.Shared.Events.Ping:FireAllClients()
+			props.triggerSetPlayer()
 		else
 			model = Dummies:GetModelFromItemId(props.ItemId)
 			button = Dummies:GetButton()
@@ -39,7 +74,7 @@ local function Item(props: {
 			button.Parent = workspace;
 			(button.PrimaryPart.BillboardGui.TextLabel :: TextLabel).Text = (props.DisplayName or props.ItemId)
 				.. "-[$"
-				.. props.Price
+				.. Alyanum.new(props.Price):toString()
 				.. "]"
 			local touched = false
 			button.PrimaryPart.Touched:Connect(function(part: Part)
@@ -110,82 +145,38 @@ local function Item(props: {
 	return e("Folder")
 end
 
-local function ItemRenderer()
-	local players, setPlayers = useState(nil)
-	local CashIntances, setCashIntances = useState(nil)
-	local cash, setCash = useState(PDDummy.Cash)
-
-	local PlayerData, setPlayerData = useState(PDDummy)
+local function ItemRenderer(props: {
+	Player: Player,
+	Plot: Model,
+})
+	local profile = PlayerDataService:GetProfile(props.Player)
+	if not profile then
+		return
+	end
+	local cash, setCash = useState(profile.Data.Resources.Money)
+	local playerData, setPlayerData = useState(profile.Data)
 	local children = {}
-
-	useEffect(function()
-		game.Players.PlayerAdded:Connect(function(player)
-			setPlayers(game.Players:GetPlayers())
-		end)
-		task.spawn(function()
-			while task.wait(1) do
-				PDDummy.Cash += PDDummy.Rate
-				setCash(PDDummy.Cash)
-			end
-		end)
-	end, {})
-
-	useEffect(function()
-		local CashIntancesx = {}
-		for i, player in players or {} do
-			local leaderstats = player:FindFirstChild("leaderstats")
-				or (function()
-					local folder = Instance.new("Folder", player)
-					folder.Name = "leaderstats"
-					return folder
-				end)()
-
-			local Cash = leaderstats:FindFirstChild("Cash")
-				or ({
-					pcall(function()
-						local cashValue = Instance.new("IntValue", leaderstats)
-						cashValue.Name = "Cash"
-						return cashValue
-					end),
-				})[2]
-			table.insert(CashIntancesx, Cash)
-		end
-		warn("CashIntancesx", CashIntancesx)
-		setCashIntances(CashIntancesx)
-		return function()
-			for i, cashx in CashIntancesx do
-				cashx:Destroy()
-			end
-		end
-	end, { players })
-
-	useEffect(function()
-		if not CashIntances then
-			return
-		end
-		for i, cashInstance: IntValue in CashIntances do
-			cashInstance.Value = PDDummy.Cash
-		end
-	end, { cash })
 
 	local function BuyButton(ItemId: string): boolean
 		local success = false
-		local total = PDDummy.Cash - ICDummies[ItemId].Price
+		local total = profile.Data.Resources.Money - ICDummies[ItemId].Price
+		local pd = PlayerData.Collections[props.Player]
 		if total >= 0 then
-			PDDummy.Cash = total
-			setCash(PDDummy.Cash)
-			PDDummy.OwnedItems[ItemId] = true
+			profile.Data.Resources.Money = total
+			setCash(total)
+			pd:FireBEChanged()
+			profile.Data.OwnedItems[ItemId] = true
 			for i, unlockedItemId in ICDummies[ItemId].Unlocks or {} do
-				PDDummy.UnlockedItems[unlockedItemId] = true
+				profile.Data.UnlockedItems[unlockedItemId] = true
 			end
-			PDDummy.Rate += 5
+			-- profile.Data.Resources.Rate += 5
 			setPlayerData(function(prev)
-				return table.clone(PDDummy)
+				return table.clone(profile.Data)
 			end)
 
 			success = true
 		else
-			warn("Not enough")
+			-- warn("Not enough")
 		end
 		warn(success)
 		return success
@@ -193,16 +184,21 @@ local function ItemRenderer()
 
 	local unowned
 	local ownedcount = 0
+	local function triggerSetPlayer()
+		setPlayerData(function(prev)
+			return table.clone(profile.Data)
+		end)
+	end
 	for i, itemConfig in ipairs(ICDummies) do
 		if unowned then
 			unowned += 1
 		end
-		local unlocked = PlayerData.UnlockedItems[itemConfig.ItemId]
+		local unlocked = playerData.UnlockedItems[itemConfig.ItemId]
 		if not unlocked then
 			continue
 		end
 
-		local owned = PlayerData.OwnedItems[itemConfig.ItemId]
+		local owned = playerData.OwnedItems[itemConfig.ItemId]
 		if not owned and not unowned then
 			unowned = 1
 		end
@@ -215,13 +211,123 @@ local function ItemRenderer()
 			ItemId = itemConfig.ItemId,
 			DisplayName = itemConfig.DisplayName,
 			Price = itemConfig.Price,
-			RootArea = workspace.EmptyBase.RootArea,
+			triggerSetPlayer = triggerSetPlayer,
+			Profile = PlayerDataService:GetProfile(props.Player),
+			RootArea = props.Plot.RootArea,
 			BuyButton = BuyButton,
 		})
+		local MoneyDisplayUpdate = game.ReplicatedStorage.Shared.Events:FindFirstChild("MoneyDisplayUpdate")
+		if not MoneyDisplayUpdate then
+			MoneyDisplayUpdate = Instance.new("RemoteEvent")
+			MoneyDisplayUpdate.Name = "MoneyDisplayUpdate"
+			MoneyDisplayUpdate.Parent = game.ReplicatedStorage.Shared.Events
+		end
+		-- Only send money/rate, not full PlayerData
+		MoneyDisplayUpdate:FireClient(props.Player, profile.Data.Resources.Money, profile.Data.Resources.Rate or 0)
 	end
 	return e("Folder", {
 		Name = "ItemRenderer",
 	}, children)
 end
 
-return ItemRenderer
+-- MANAGES EVERY PLAYER'S ITEM RENDERER
+local function ItemRendererApp(props)
+	local renderers: { [Player]: { Player: Player, Plot: Model } }, setRenderers = useState({})
+	local renderersRef = useRef({})
+
+	-- Once Mounted
+	useEffect(function()
+		local playerSet: { [Player]: boolean } = {}
+
+		local function createRenderer(player: Player)
+			if playerSet[player] then
+				return
+			end
+			playerSet[player] = true
+			setRenderers(function(prev)
+				local newRenderers = table.clone(prev)
+				local Plot = getPlot()
+				PlayerPlot[player] = Plot
+
+				-- Set up character respawn
+				local cSet = function()
+					local char = player.Character or player.CharacterAdded:Wait()
+					player.CharacterAdded:Connect(function(cmodel: Model)
+						warn("ADDED", cmodel)
+						setRenderers(function(prev)
+							local clone = table.clone(prev)
+							clone[player].Character = cmodel
+							return clone
+						end)
+					end)
+					setRenderers(function(prev)
+						local clone = table.clone(prev)
+						clone[player].Character = char
+						return clone
+					end)
+					char:PivotTo(Plot.PrimaryPart:GetPivot() + Vector3.new(0, 10, 0))
+				end
+				task.spawn(cSet)
+
+				newRenderers[player] = {
+					Player = player,
+					Plot = Plot,
+				}
+				return newRenderers
+			end)
+		end
+
+		local function cleanupRenderer(player: Player)
+			setRenderers(function(prev)
+				local newRenderers = table.clone(prev)
+				if newRenderers[player] then
+					addPlot(newRenderers[player].Plot)
+					newRenderers[player] = nil
+				end
+				return newRenderers
+			end)
+			playerSet[player] = false
+		end
+
+		-- on player added and removed
+		local pAddedCon = game.Players.PlayerAdded:Connect(createRenderer)
+		local pRemovedCon = game.Players.PlayerRemoving:Connect(cleanupRenderer)
+
+		-- iterate Players in case player joined before the connection
+		for i, Player: Player in game.Players:GetPlayers() do
+			if playerSet[Player] then
+				continue
+			end
+			createRenderer(Player)
+		end
+
+		return function()
+			if pAddedCon then
+				pAddedCon:Disconnect()
+			end
+			if pRemovedCon then
+				pRemovedCon:Disconnect()
+			end
+		end
+	end, {})
+
+	useEffect(function()
+		renderersRef.current = renderers
+	end, { renderers })
+
+	local children = {}
+
+	for i, renderer in renderers do
+		children[renderer.Player.Name .. "'s Renderer"] = e(ItemRenderer, {
+			key = "renderer" .. renderer.Player.UserId,
+			Player = renderer.Player,
+			Plot = renderer.Plot,
+		})
+	end
+
+	return e("Folder", {
+		Name = "ItemRendererApp",
+	}, children)
+end
+
+return ItemRendererApp

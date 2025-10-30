@@ -35,7 +35,10 @@ export type Item = {
 export type PlayerSettings = { MusicVolume: number? }
 export type Progress = { EXP: number, LVL: number, Life: number }
 export type PlayerData = {
-	Resources: { [string]: number },
+	Resources: {
+		Money: number,
+		Rate: number,
+	},
 	Collector: number,
 	PlayerSettings: PlayerSettings,
 	Progress: Progress,
