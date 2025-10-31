@@ -58,11 +58,11 @@ local function Item(props: {
 			for i, itemId in ICDummies[props.ItemId].Unlocks or {} do
 				props.Profile.Data.UnlockedItems[itemId] = true
 			end
-			game.ReplicatedStorage.Shared.Events.Ping:FireAllClients()
 			props.triggerSetPlayer()
 		else
 			model = Dummies:GetModelFromItemId(props.ItemId)
 			button = Dummies:GetButton()
+			-- button.Part.Anchored = true
 			local originalBoundingCF = model:GetBoundingBox()
 			local boundingCFrame = props.RootArea:GetPivot():ToWorldSpace(
 				workspace.OriginalBase.RootArea:GetPivot():ToObjectSpace(originalBoundingCF)
@@ -85,6 +85,23 @@ local function Item(props: {
 				if not props.BuyButton(props.ItemId) then
 					return
 				end
+
+				if touched then
+					return
+				end
+				touched = true
+
+				-- task.spawn(function()
+				-- 	local tempbutton = button
+				-- 	button = nil
+				-- 	local Animator: Animator = tempbutton.AnimationController.Animator
+				-- 	local Animation: Animation = Animator.Animation
+				-- 	local AnimTrack: AnimationTrack = Animator:LoadAnimation(Animation)
+				-- 	AnimTrack:Play(0, 1, 10)
+				-- 	AnimTrack.Ended:Wait()
+				-- 	tempbutton:Destroy()
+				-- end)
+
 				local Debris = game:GetService("Debris")
 				local pemitter = (function()
 					local clone = workspace.ParticlePart:Clone()
@@ -128,6 +145,7 @@ local function Item(props: {
 				})
 
 				warn(tempPart)
+				game.ReplicatedStorage.Shared.Events.Ping:FireAllClients()
 
 				task.wait(1 / 10)
 				pemitter.ParticleEmitter:Emit()
@@ -145,6 +163,7 @@ local function Item(props: {
 	return e("Folder")
 end
 
+
 local function ItemRenderer(props: {
 	Player: Player,
 	Plot: Model,
@@ -157,6 +176,9 @@ local function ItemRenderer(props: {
 	local playerData, setPlayerData = useState(profile.Data)
 	local children = {}
 
+	-- Persistent set of unowned unlocked items currently rendered
+	local renderedUnownedSet = useRef({})
+
 	local function BuyButton(ItemId: string): boolean
 		local success = false
 		local total = profile.Data.Resources.Money - ICDummies[ItemId].Price
@@ -166,10 +188,11 @@ local function ItemRenderer(props: {
 			setCash(total)
 			pd:FireBEChanged()
 			profile.Data.OwnedItems[ItemId] = true
+			-- Remove from renderedUnownedSet so a new one can be added
+			renderedUnownedSet.current[ItemId] = nil
 			for i, unlockedItemId in ICDummies[ItemId].Unlocks or {} do
 				profile.Data.UnlockedItems[unlockedItemId] = true
 			end
-			-- profile.Data.Resources.Rate += 5
 			setPlayerData(function(prev)
 				return table.clone(profile.Data)
 			end)
@@ -182,40 +205,67 @@ local function ItemRenderer(props: {
 		return success
 	end
 
-	local unowned
-	local ownedcount = 0
+	local unownedCount = 0
 	local function triggerSetPlayer()
 		setPlayerData(function(prev)
 			return table.clone(profile.Data)
 		end)
 	end
 	for i, itemConfig in ipairs(ICDummies) do
-		if unowned then
-			unowned += 1
-		end
 		local unlocked = playerData.UnlockedItems[itemConfig.ItemId]
 		if not unlocked then
 			continue
 		end
 
 		local owned = playerData.OwnedItems[itemConfig.ItemId]
-		if not owned and not unowned then
-			unowned = 1
+		if owned then
+			-- Always render owned items
+			children[itemConfig.ItemId] = e(Item, {
+				key = itemConfig.ItemId,
+				Owned = true,
+				ItemId = itemConfig.ItemId,
+				DisplayName = itemConfig.DisplayName,
+				Price = itemConfig.Price,
+				triggerSetPlayer = triggerSetPlayer,
+				Profile = PlayerDataService:GetProfile(props.Player),
+				RootArea = props.Plot.RootArea,
+				BuyButton = BuyButton,
+			})
+		else
+			-- Unowned, unlocked
+			if renderedUnownedSet.current[itemConfig.ItemId] then
+				-- Already rendered, keep rendering
+				unownedCount += 1
+				children[itemConfig.ItemId] = e(Item, {
+					key = itemConfig.ItemId,
+					Owned = false,
+					ItemId = itemConfig.ItemId,
+					DisplayName = itemConfig.DisplayName,
+					Price = itemConfig.Price,
+					triggerSetPlayer = triggerSetPlayer,
+					Profile = PlayerDataService:GetProfile(props.Player),
+					RootArea = props.Plot.RootArea,
+					BuyButton = BuyButton,
+				})
+			elseif unownedCount < 5 then
+				-- Not yet rendered, but we have quota
+				renderedUnownedSet.current[itemConfig.ItemId] = true
+				unownedCount += 1
+				children[itemConfig.ItemId] = e(Item, {
+					key = itemConfig.ItemId,
+					Owned = false,
+					ItemId = itemConfig.ItemId,
+					DisplayName = itemConfig.DisplayName,
+					Price = itemConfig.Price,
+					triggerSetPlayer = triggerSetPlayer,
+					Profile = PlayerDataService:GetProfile(props.Player),
+					RootArea = props.Plot.RootArea,
+					BuyButton = BuyButton,
+				})
+			end
+			-- If not in set and quota full, skip rendering
 		end
-		if (unowned and unowned > 5) and not owned then
-			break
-		end
-		children[itemConfig.ItemId] = e(Item, {
-			key = itemConfig.ItemId,
-			Owned = owned,
-			ItemId = itemConfig.ItemId,
-			DisplayName = itemConfig.DisplayName,
-			Price = itemConfig.Price,
-			triggerSetPlayer = triggerSetPlayer,
-			Profile = PlayerDataService:GetProfile(props.Player),
-			RootArea = props.Plot.RootArea,
-			BuyButton = BuyButton,
-		})
+
 		local MoneyDisplayUpdate = game.ReplicatedStorage.Shared.Events:FindFirstChild("MoneyDisplayUpdate")
 		if not MoneyDisplayUpdate then
 			MoneyDisplayUpdate = Instance.new("RemoteEvent")

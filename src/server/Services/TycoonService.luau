@@ -383,7 +383,22 @@ local function Tycoon(props: TycoonProps)
 			if touchconn then
 				touchconn:Disconnect()
 			end
-			surfaceGui:Destroy()
+			if BaseLightAtt then
+				BaseLightAtt:Destroy()
+			end
+			if surfaceGui then
+				surfaceGui:Destroy()
+			end
+			local textlabel = props.Plot
+				and props.Plot.Collector
+				and props.Plot.Collector:FindFirstChild("CollectDisplay") :: Model
+				and props.Plot.Collector.CollectDisplay:FindFirstChild("SurfaceGui")
+				and props.Plot.Collector.CollectDisplay.SurfaceGui:FindFirstChild("TextLabel")
+			if textlabel and textlabel:IsA("TextLabel") then
+				textlabel.Text = ""
+			else
+				warn("No textlabel")
+			end
 		end
 	end, { props.Plot, props.Player })
 
