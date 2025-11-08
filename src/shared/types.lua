@@ -19,7 +19,7 @@ export type ItemConfig = {
 	Tier: string,
 	Variations: { VariationId },
 	Entry: (item: Item, tycoon: TycoonProps) -> nil?,
-	Merge: (item: Item, tycoon: TycoonProps) -> nil?,
+	Merge: ((item: Item, tycoon: TycoonProps) -> nil)?,
 	Removed: (item: Item, tycoon: TycoonProps) -> nil?,
 }
 
@@ -31,7 +31,11 @@ export type Item = {
 	Rate: number,
 	Entered: boolean?,
 }
-
+export type Multiplier = {
+	DisplayName: string?,
+	Value: number, -- must be > 1
+	Expire: number, -- if Expire - tick() < 0 then delete the multiplier. Crucial to run through MultiplierService for server and controller for client before actually using the value
+}
 export type PlayerSettings = { MusicVolume: number? }
 export type Progress = { EXP: number, LVL: number, Life: number }
 export type PlayerData = {
@@ -44,6 +48,8 @@ export type PlayerData = {
 	Progress: Progress,
 	Items: { Item },
 	ItemSlots: ItemSlots,
+	Multipliers: { [string]: Multiplier }, -- each multiplier adds to a total final multiplier value
+	AutoCollect: boolean,
 }
 
 export type VariationConfig = {

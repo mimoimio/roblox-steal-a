@@ -20,12 +20,12 @@ local DefaultPlayerData = {}
 
 function DefaultPlayerData.Get()
 	local DEFAULT_RESOURCES = {
-		Money = 50,
+		Money = 200,
 		Rate = 0,
 	}
 	local DEFAULT_SETTINGS = {
 		MusicMuted = false,
-		MusicVolume = 0.5,
+		MusicVolume = 0.3,
 	}
 	local DEFAULT_PROGRESS = {
 		EXP = 0,
@@ -67,6 +67,10 @@ function DefaultPlayerData.Get()
 		Progress = DEFAULT_PROGRESS,
 		Items = DEFAULT_ITEMS,
 		ItemSlots = DEFAULT_ITEMSLOTS,
+		Multipliers = {},
+		AutoCollect = false,
+		TutorialFinished = false,
+		OwnedItems = {},
 	}
 end
 

@@ -4,6 +4,8 @@ local Alyanum = require(game.ReplicatedStorage.Packages.Alyanum)
 local SpecialEventsConfig = require(game.ReplicatedStorage.Shared.Configs.SpecialEventsConfig)
 local TS = game:GetService("TweenService")
 local Counter = require(script.Parent.counter)
+local BeamToNextButton = require(script.Parent.BeamToNextButton)
+local TopRightHud = require(script.Parent.TopRightHud)
 
 local function HUD(props)
 	local hudRef = React.useRef()
@@ -13,7 +15,7 @@ local function HUD(props)
 	local rate, setRate = React.useState(Resources.Rate)
 	local money, setMoney = React.useState(Resources.Money)
 	local clock, setClock = React.useState(game.Lighting.ClockTime)
-
+	local multipliers, setMultipliers = React.useState(PlayerData.Multiplier or {})
 	-- Stopwatch state and effect (must be inside HUD for React to be defined)
 	local stopwatch, setStopwatch = React.useState("00:00")
 	React.useEffect(function()
@@ -38,7 +40,6 @@ local function HUD(props)
 
 	React.useEffect(function()
 		if hudRef.current then
-			warn(hudRef.current);
 			(hudRef.current :: Frame).Changed:Connect(function(property)
 				if property == "AbsoluteSize" then
 					warn("AbsoluteSize changed:", hudRef.current[property])
@@ -51,6 +52,8 @@ local function HUD(props)
 		local ResourcesUpdated: RemoteEvent = Events:WaitForChild("ResourcesUpdated")
 		local SpecialEvents: RemoteEvent = Events:WaitForChild("SpecialEvents")
 		local MoneyDisplayUpdate: UnreliableRemoteEvent = Events:WaitForChild("MoneyDisplayUpdate")
+		local MultipliersUpdated: RemoteEvent = Events:WaitForChild("MultipliersUpdated")
+		local GetMultipliers: RemoteFunction = Events:WaitForChild("GetMultipliers")
 
 		local connections = {
 			rupdatec = ResourcesUpdated.OnClientEvent:Connect(function(resources: { Money: number, Rate: number })
@@ -66,14 +69,25 @@ local function HUD(props)
 				setMoney(money)
 				setRate(rate)
 			end),
+			MultipliersUpdated = MultipliersUpdated.OnClientEvent:Connect(function(newMultipliers)
+				setMultipliers(newMultipliers or {})
+			end),
 		}
-		-- On first mount, invoke GetSpecialEvents
+		-- On first mount, invoke GetSpecialEvents and GetMultipliers
 		local GetSpecialEvents: RemoteFunction = Events:WaitForChild("GetSpecialEvents")
 		local ok, events = pcall(function()
 			return GetSpecialEvents:InvokeServer()
 		end)
 		if ok and type(events) == "table" then
 			setSpecialEvents(events)
+		end
+
+		-- Fetch initial multipliers
+		local ok2, mults = pcall(function()
+			return GetMultipliers:InvokeServer()
+		end)
+		if ok2 and type(mults) == "table" then
+			setMultipliers(mults)
 		end
 
 		return function()
@@ -222,7 +236,7 @@ local function HUD(props)
 				}),
 			}),
 			MusicButton = e("ImageButton", {
-				Name = "SettingsButton",
+				Name = "MusicButton",
 				Position = UDim2.new(0.5, 0, 0, 0),
 				AnchorPoint = Vector2.new(0.5, 0),
 				BackgroundTransparency = 0.4,
@@ -243,40 +257,34 @@ local function HUD(props)
 					TextColor3 = Color3.new(1, 1, 1),
 				}),
 			}),
+			ShopButton = e("ImageButton", {
+				Name = "ShopButton",
+				Position = UDim2.new(0.5, 0, 0, 0),
+				AnchorPoint = Vector2.new(0.5, 0),
+				BackgroundTransparency = 0.4,
+				BorderSizePixel = 0,
+				LayoutOrder = 3,
+				[React.Event.Activated] = props.OnShopButtonClick,
+			}, {
+				rounded = e(require(script.Parent.ui.rounded)),
+				TextLabel = e("TextLabel", {
+					Position = UDim2.new(0.5, 0, 1, -8),
+					Size = UDim2.new(1, 0, 01, 0),
+					AnchorPoint = Vector2.new(0.5, 1),
+					BackgroundTransparency = 1,
+					Font = "FredokaOne",
+					TextSize = 14,
+					Text = "Shop [P]",
+					Active = false,
+					TextColor3 = Color3.new(1, 1, 1),
+				}),
+			}),
+			-- Beam to Next Button Toggle
 		}),
-		TopRightHud = e("ImageLabel", {
-			Name = "TopRightHud",
-			Image = "rbxassetid://136242854116857",
-			ScaleType = Enum.ScaleType.Slice,
-			SliceCenter = Rect.new(30, 30, 90, 90),
-			AnchorPoint = Vector2.new(01, 0),
-			Position = UDim2.new(1, 0, 0, 0),
-			AutomaticSize = Enum.AutomaticSize.XY,
-			BackgroundTransparency = 1,
-			BorderSizePixel = 0,
-		}, {
-			padding = e("UIPadding", {
-				PaddingTop = UDim.new(0, 12),
-				PaddingRight = UDim.new(0, 12),
-				PaddingLeft = UDim.new(0, 12),
-				PaddingBottom = UDim.new(0, 12),
-			}),
-			verticallist = e(require(script.Parent.ui.verticallist)),
-			TextLabel = e("TextLabel", {
-				Position = UDim2.new(0.5, 0, 0.5, 0),
-				AutomaticSize = Enum.AutomaticSize.XY,
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				BackgroundTransparency = 1,
-				Font = "FredokaOne",
-				TextSize = 14,
-				TextStrokeTransparency = 0,
-				Text = "Money:"
-					.. (money and (Alyanum.new(money):toString() .. "/s") or "...")
-					.. "\nrate: "
-					.. (rate and (Alyanum.new(rate):toString() .. "/s") or "..."),
-				Active = false,
-				TextColor3 = Color3.new(1, 1, 1),
-			}),
+		TopRightHud = e(TopRightHud, {
+			money = money,
+			rate = rate,
+			multipliers = multipliers,
 		}),
 		BotLeftHud = e("ImageLabel", {
 			Name = "TopRightHud",
@@ -322,6 +330,18 @@ local function HUD(props)
 			}),
 		}),
 		-- Special event labels (direct children of HUD)
+
+		BottomHud = e("Frame", {
+			Name = "BottomHud",
+			Position = UDim2.new(0.5, 0, 1, -100),
+			Size = UDim2.new(0, 200, 0, 50),
+			AnchorPoint = Vector2.new(0.5, 1),
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+		}, {
+			BeamToggle = props.PlayerData.TutorialFinished and e(BeamToNextButton) or nil,
+		}),
+
 		TopHud = e("Frame", {
 			Name = "TopHud",
 			Position = UDim2.new(0.5, 0, 0, 0),

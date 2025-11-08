@@ -30,7 +30,7 @@ local function PICell(props: {
 	local frameRef = React.useRef(nil)
 	local tooltipRef = React.useRef(nil)
 	local resconnRef = React.useRef(nil)
-	local text = FormatItemLabelText(props.Item)
+	local text = (props.Item.Entered and "" or "*") .. FormatItemLabelText(props.Item)
 	local mouseEnter, setMouseEnter = React.useState(false)
 
 	React.useEffect(function()

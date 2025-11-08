@@ -11,6 +11,7 @@ type PlayerData = sharedtypes.PlayerData
 ]]
 
 local PlayerData = require(game.ServerScriptService.Server.Classes.PlayerData)
+local PlayerDataService = require(game.ServerScriptService.Server.Services.PlayerDataService)
 local ItemsConfig: { ItemConfig } = require(game.ReplicatedStorage.Shared.Configs.ItemsConfig)
 local VariationsConfig: { VariationConfig } = require(game.ReplicatedStorage.Shared.Configs.VariationsConfig)
 local TiersConfig: { TierConfig } = require(game.ReplicatedStorage.Shared.Configs.TiersConfig)
@@ -31,7 +32,7 @@ end
 local ItemCreated = Instance.new("BindableEvent")
 ItemCreated.Name = "ItemCreated"
 Item.Created = ItemCreated.Event
-
+-- Created:
 local ItemDeleted = Instance.new("BindableEvent")
 ItemDeleted.Name = "ItemDeleted"
 Item.Deleted = ItemDeleted.Event
@@ -97,7 +98,7 @@ function Item.new(ItemId: string, Player: Player, VariationId: string?): Item?
 end
 
 function Item:Sell(player)
-	local pd: PlayerData = PlayerData.Collections[player]
+	local pd: PlayerData = PlayerDataService:GetProfile(player).Data
 	local TycoonService = require(game.ServerScriptService.Server.Services.TycoonService)
 	local playersTycoon = TycoonService.GetTycoonFromPlayer:Invoke(player)
 	for i, item: Item in pd.Items do

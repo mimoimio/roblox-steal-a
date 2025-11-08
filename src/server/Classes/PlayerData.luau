@@ -42,7 +42,7 @@ end
 
 function PlayerData:GetItemFromUID(UID: string): Item?
 	local pd: PlayerData = self
-	local items: { Item } = pd.Items
+	local items: { Item } = PlayerDataService:GetProfile(PlayerData.Owners[pd]).Data.Items
 	for i, item: Item in items or {} do
 		if UID == item.UID then
 			return item

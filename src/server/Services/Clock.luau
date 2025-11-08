@@ -45,7 +45,7 @@ end
 function lightsOff() --(Sunrise)
 	TweenService:Create(game.Lighting, TweenInfo.new(1), {
 		OutdoorAmbient = Color3.new(1, 0.8, 0.5),
-		Brightness = 3,
+		Brightness = 1,
 	}):Play()
 	for i, light: Light in ipairs(self.Lights) do
 		light.Enabled = false
@@ -63,7 +63,7 @@ local secPerGameHour = minPerGameDay / ((1 / 60) / (1 / 24)) --60 -- s/gH
 -- local start = tick()
 -- local clockstart = ((tick() / secPerGameHour) % 24)
 function self.TimeIncrement(dt)
-	local clockNow = ((tick() / secPerGameHour) % 24)
+	local clockNow = (((tick() + 60 * 7) / secPerGameHour) % 24)
 	game.Lighting.ClockTime = clockNow
 	-- game.Lighting.ClockTime += dt / self.SecondsPerDay * 24
 	-- m += 1

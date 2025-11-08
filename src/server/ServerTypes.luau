@@ -8,6 +8,10 @@ local VariationRNGService = require(server.Services.VariationRNGService)
 local TycoonService = require(server.Services.TycoonService)
 local TreeSpawnService = require(server.Services.TreeSpawnService)
 local ItemSpawnService = require(server.Services.ItemSpawnService)
+local ItemRenderService = require(server.Services.ItemRenderService)
+local ItemConfigService = require(server.Services.ItemConfigService)
+local MultiplierService = require(server.Services.MultiplierService)
+local MonetizationService = require(server.Services.MonetizationService)
 local Clock = require(server.Services.Clock)
 shared = {
 	Services = {
@@ -17,9 +21,13 @@ shared = {
 		RemoteEventsService = RemoteEventsService,
 		TierRNGService = TierRNGService,
 		VariationRNGService = VariationRNGService,
+		MultiplierService = MultiplierService,
+		MonetizationService = MonetizationService,
 		TycoonService = TycoonService,
 		TreeSpawnService = TreeSpawnService,
 		ItemSpawnService = ItemSpawnService,
+		ItemRenderService = ItemRenderService,
+		ItemConfigService = ItemConfigService,
 		Clock = Clock,
 	},
 }

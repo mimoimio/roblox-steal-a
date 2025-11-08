@@ -18,6 +18,9 @@
     "ServerStorage": {
       "pluginstorage": {
         "$path": "src/pluginstorage"
+      },
+      "tools": {
+        "$path": "src/tools"
       }
     },
     "StarterPlayer": {

@@ -30,6 +30,7 @@ type Item = {
 local useToast = require(script.Parent.Toasts).useToast
 local Inventory = require(script.Parent.Inventory)
 local Settings = require(script.Parent.Settings)
+local Shop = require(script.Parent.Shop)
 local PlaceItem = require(script.Parent.PlaceItem)
 local SellItem = require(script.Parent.SellItem)
 local HUD = require(script.Parent.HUD)
@@ -63,6 +64,7 @@ local function Main(props)
 	local SettingsOpen = activePanel == "settings"
 	local InventoryOpen = activePanel == "inventory"
 	local MusicOpen = activePanel == "music"
+	local ShopOpen = activePanel == "shop"
 
 	-- Toggle helpers
 	local function toggle(panel: Panel)
@@ -125,6 +127,8 @@ local function Main(props)
 					toggle("music")
 				elseif io.KeyCode == Enum.KeyCode.C then
 					toggle("settings")
+				elseif io.KeyCode == Enum.KeyCode.P then
+					toggle("shop")
 				elseif io.KeyCode == Enum.KeyCode.M then
 					toggle("mustard")
 				elseif io.KeyCode == Enum.KeyCode.LeftShift then
@@ -168,25 +172,67 @@ local function Main(props)
 			end),
 
 			-- ping
-			Ping = Ping.OnClientEvent:Connect(function()
+			Ping = Ping.OnClientEvent:Connect(function(type)
 				task.spawn(function()
-					local sound: Sound? = game.ReplicatedStorage.Shared.SFX.Ping:FindFirstChildWhichIsA("Sound")
-					if sound then
+					if type == nil then
+						local sound: Sound? = game.ReplicatedStorage.Shared.SFX.Ping:FindFirstChildWhichIsA("Sound")
+						if sound then
+							sound.Parent = game.Players.LocalPlayer
+							if not sound.IsLoaded then
+								sound.Loaded:Wait()
+							end
+							sound:Play()
+							sound.Ended:Wait()
+							sound.Parent = game.ReplicatedStorage.Shared.SFX.Ping
+						else
+							sound = Instance.new("Sound", game.Players.LocalPlayer)
+							if not sound.IsLoaded then
+								sound.Loaded:Wait()
+							end
+							sound:Play()
+							sound.Ended:Wait()
+							sound:Destroy()
+						end
+					elseif type == "cash" then
+						local sound: Sound? = game.ReplicatedStorage.Shared.SFX:WaitForChild("Cash"):Clone()
 						sound.Parent = game.Players.LocalPlayer
 						if not sound.IsLoaded then
 							sound.Loaded:Wait()
 						end
 						sound:Play()
 						sound.Ended:Wait()
-						sound.Parent = game.ReplicatedStorage.Shared.SFX.Ping
-					else
-						sound = Instance.new("Sound", game.Players.LocalPlayer)
-						if not sound.IsLoaded then
-							sound.Loaded:Wait()
-						end
-						sound:Play()
-						sound.Ended:Wait()
 						sound:Destroy()
+					elseif type == "gen" then
+						task.spawn(function()
+							local sound: Sound? = game.ReplicatedStorage.Shared.SFX:WaitForChild("Bass2"):Clone()
+							sound.Parent = game.Players.LocalPlayer
+							if not sound.IsLoaded then
+								sound.Loaded:Wait()
+							end
+							sound:Play()
+							sound.Ended:Wait()
+							sound:Destroy()
+						end)
+						task.spawn(function()
+							local sound: Sound? = game.ReplicatedStorage.Shared.SFX:WaitForChild("Bass"):Clone()
+							sound.Parent = game.Players.LocalPlayer
+							if not sound.IsLoaded then
+								sound.Loaded:Wait()
+							end
+							sound:Play()
+							sound.Ended:Wait()
+							sound:Destroy()
+						end)
+						task.spawn(function()
+							local sound: Sound? = game.ReplicatedStorage.Shared.SFX.Ping :WaitForChild("Ping"):Clone()
+							sound.Parent = game.Players.LocalPlayer
+							if not sound.IsLoaded then
+								sound.Loaded:Wait()
+							end
+							sound:Play()
+							sound.Ended:Wait()
+							sound:Destroy()
+						end)
 					end
 				end)
 			end),
@@ -194,7 +240,7 @@ local function Main(props)
 			--[[ PLAYER ITEMS UPDATE EVENT ================================]]
 			itemupdatedconnection = ItemUpdated.OnClientEvent:Connect(function(fetchedItems: { Item }, Flash: boolean)
 				setPlayerData(function(prev: PlayerData)
-					local new = table.clone(prev)
+					local new = table.clone(prev or fetchPlayerData())
 					new.Items = fetchedItems
 
 					local newItemDict = {}
@@ -221,12 +267,23 @@ local function Main(props)
 				setItems(fetchedItems)
 			end),
 
+			PlayerDataUpdated = game.ReplicatedStorage
+				:WaitForChild("Shared")
+				:WaitForChild("Events")
+				:WaitForChild("PlayerDataUpdated").OnClientEvent
+				:Connect(function(pd: PlayerData)
+					setPlayerData(function(prev)
+						return table.clone(pd)
+					end)
+				end),
+
 			--[[ PLACE ITEM PROMPT EVENT ================================]]
 			placeitemconneciton = PlaceItemEvent.OnClientEvent:Connect(function(SlotNum: Slot)
 				toggle("placeitem")
 				setPlaceSlot(SlotNum)
 
 				submitRef.current = function(UID: string)
+					warn("Submitting slotnum", SlotNum)
 					PlaceItemEvent:FireServer(SlotNum, UID)
 					setActivePanel("none")
 					setPlaceSlot(nil)
@@ -346,6 +403,15 @@ local function Main(props)
 					if submitRef and typeof(submitRef.current) == "function" then
 						submitRef.current(UID)
 						setActivePanel("none")
+						setItems(function(prev)
+							local clone = table.clone(prev)
+							for i, item in clone do
+								if item.UID == UID then
+									item.Entered = true
+								end
+							end
+							return clone
+						end)
 					else
 						-- warn("No SubmitRef")
 					end
@@ -399,6 +465,12 @@ local function Main(props)
 				toggle("music")
 			end,
 		}),
+		Shop = e(Shop, {
+			IsOpen = ShopOpen,
+			OnClose = function()
+				toggle("shop")
+			end,
+		}),
 		Inventory = e(Inventory, {
 			PlayerData = PlayerData,
 			InventoryOpen = InventoryOpen,
@@ -426,7 +498,30 @@ local function Main(props)
 			OnMusicButtonClick = function()
 				toggle("music")
 			end,
+			OnShopButtonClick = function()
+				toggle("shop")
+			end,
 		}),
+		Tutorial = not PlayerData.TutorialFinished
+				and e(require(script.Parent.Tutorial), {
+					PlayerData = PlayerData,
+					onFinish = function()
+						-- Optimistically mark tutorial finished, then refresh authoritative PlayerData from server
+						setPlayerData(function(prev)
+							local clone = table.clone(prev or fetchPlayerData())
+							clone.TutorialFinished = true
+							return clone
+						end)
+						-- Refresh from server asynchronously
+						task.spawn(function()
+							local pd = fetchPlayerData()
+							if pd then
+								setPlayerData(pd)
+							end
+						end)
+					end,
+				})
+			or nil,
 		Panel = Panel,
 		Padding = e("UIPadding", {
 			PaddingTop = UDim.new(0, 16),

@@ -1,4 +1,4 @@
-local Alyanum = require(game.ReplicatedStorage.Packages.Alyanum)
+local Alyanum = require(script.Parent.Packages.Alyanum)
 local React = require(script.Parent.Packages.React)
 local e = React.createElement
 
@@ -286,7 +286,7 @@ return ItemVisualizer
 -- 			local UIListLayout = Instance.new("UIListLayout", billboard)
 -- 			UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
--- 			local button = workspace.Button:Clone()
+-- 			local button = workspace.Button.Value:Clone()
 -- 			table.insert(existingVisuals, button)
 -- 			button:PivotTo(configData.Prefab:GetPivot())
 -- 			button.Parent = visualsFolder

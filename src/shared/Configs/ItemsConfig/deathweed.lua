@@ -1,7 +1,11 @@
+local isserver = game:GetService("RunService"):IsServer()
+local EffectHelpers
+if isserver then
+	EffectHelpers = require(game:GetService("ServerScriptService").Server.Utils.EffectHelpers)
+end
 local sharedtypes = require(game.ReplicatedStorage.Shared.types)
 type ItemConfig = sharedtypes.ItemConfig
-type Item = sharedtypes.Item
-type TycoonProps = sharedtypes.TycoonProps
+
 return {
 	ItemId = "deathweed",
 	DisplayName = "Deathweed",
@@ -9,44 +13,8 @@ return {
 	Price = 25,
 	TierId = "common",
 	Variations = { "none", "copper", "silver", "gold", "diamond", "strange" },
-	Removed = function(item: Item, player: Player)
-		local pd = require(game.ServerScriptService.Server.Classes.PlayerData).Collections[player]
-		local Item = require(game.ServerScriptService.Server.Classes.Item)
-		local ItemSlots = require(game.ServerScriptService.Server.Classes.ItemSlots)
-		local PlayerData = require(game.ServerScriptService.Server.Classes.PlayerData)
-		Item.FireCreatedEvent(item, player)
-		local items = {}
-
-		local playeritemslots
-		repeat
-			playeritemslots = ItemSlots.Collections[player]
-			task.wait()
-			warn("Waiting for playeritemslots")
-		until playeritemslots
-
-		for slot, UID in playeritemslots do
-			if UID == "none" then
-				continue
-			end
-			table.insert(items, UID)
-		end
-
-		if #items <= 0 then
-			warn("NO PLACED ITEMS1")
-			return
-		end
-		local randomplacedItem = pd:GetItemFromUID(items[Random.new():NextInteger(1, #items)])
-		if not randomplacedItem then
-			warn("NO PLACED ITEMS2", items)
-			return
-		end
-		warn("randomplacedItem.Rate", randomplacedItem.Rate)
-		randomplacedItem.Rate += 3
-		warn("randomplacedItem.Rate", randomplacedItem.Rate)
-		playeritemslots:FireChangedEvent()
-		Item.FireCreatedEvent(items, player)
-		local ItemUpdated: RemoteEvent = game.ReplicatedStorage.Shared.Events.ItemUpdated
-		ItemUpdated:FireClient(player, PlayerData.Collections[player].Items)
+	Removed = EffectHelpers and function(item, player)
+		EffectHelpers.addRateToRandomPlaced(item, player, 3)
 	end,
 	ItemTip = [[<font thickness ="2" color="#bbffbb">Sold</font>: add 3/s to a random placed generator]],
 } :: ItemConfig

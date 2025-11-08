@@ -14,12 +14,12 @@ local bigNumColors = {
 }
 local sequences: { ColorSequenceKeypoint } = {}
 for i, color in bigNumColors do
-	warn((i - 1) / (#bigNumColors - 1), color)
+	-- warn((i - 1) / (#bigNumColors - 1), color)
 	table.insert(sequences, ColorSequenceKeypoint.new((i - 1) / (#bigNumColors - 1), color))
 end
 local bignumColorSequence = ColorSequence.new(sequences)
 
-function FormatItemLabelText(item: Item): string
+function FormatItemLabelText(item: Item, isMultiplied: boolean?): string
 	local cfg = itemConfigs[item.ItemId]
 	local varcfg = variationConfigs[item.VariationId] or variationConfigs[((item.VariationId or "") :: string):lower()]
 	local tier = tierConfigs[item.TierId] or tierConfigs[((item.TierId or "") :: string):lower()]
@@ -37,31 +37,26 @@ function FormatItemLabelText(item: Item): string
 	local tierName = tier and tier.DisplayName or "Error"
 	local rate = Alyanum.new(item.Rate):toString()
 
+	local rateText = string.format('<font color="#%s">%s/s</font>', rateColor(item.Rate):ToHex(), rate)
+	if isMultiplied then
+		rateText = string.format('<font color="#FFD700">×</font> %s', rateText)
+	end
+
 	local text
 	if varcfg and varcfg.VariationId ~= "none" then
-		text = --
-			([[<font size="18">%s</font>
+		text = ([[<font size="18">%s</font>
 <font color="#%s">%s</font> | <font color="#%s">%s</font>
-<font color="#%s>%s/s</font>]]):format(
-				name,
-				varColor,
-				varName,
-				tierColor,
-				tierName,
-				rateColor(item.Rate):ToHex(),
-				rate
-			)
+%s]]):format(name, varColor, varName, tierColor, tierName, rateText)
 	else
-		text = --
-			([[<font>%s</font>
+		text = ([[<font>%s</font>
 <font color="#%s">%s</font>
-<font color="#%s">%s/s</font>]]):format(name, tierColor, tierName, rateColor(item.Rate):ToHex(), rate)
+%s]]):format(name, tierColor, tierName, rateText)
 	end
 	return text
 end
 
 function rateColor(rate: number): Color3
-	local spectrum = math.clamp(math.log10(rate) / 308, 0, 1)
+	local spectrum = math.clamp(rate / 9e6, 0, 1)
 	return EvalColorSequence(bignumColorSequence, spectrum)
 end
 -- local Alyanum = require(game.ReplicatedStorage.Packages.Alyanum)

@@ -23,8 +23,12 @@ end)
 ItemSlots.Changed = ItemSlotsChanged.Event
 ItemSlots.Owners = {} :: { [ItemSlots]: Player }
 
-function ItemSlots:FireChangedEvent()
-	ItemSlotsChanged:Fire(self, ItemSlots.Owners[self])
+function ItemSlots:FireChangedEvent(player)
+	if player then
+		local pd = require(game.ServerScriptService.Server.Services.PlayerDataService):GetProfile(player).Data
+		ItemSlotsChanged:Fire(pd.ItemSlots, player)
+	end
+	ItemSlotsChanged:Fire(self, ItemSlots.Owners[self] or player)
 end
 
 function ItemSlots.new(savedItemSlots: ItemSlots, Player: Player): ItemSlots?

@@ -22,7 +22,7 @@ local PROFILE_TEMPLATE: PlayerData = {
 	PlayerSettings = DefaultPlayerDataConfig.PlayerSettings,
 	Progress = DefaultPlayerDataConfig.Progress,
 	Items = DefaultPlayerDataConfig.Items,
-	ItemSlots = DefaultPlayerDataConfig.ItemSlots,
+	ItemSlots = {},
 	OwnedItems = {},
 	UnlockedItems = {
 		["floor"] = true,
@@ -71,7 +71,7 @@ function PlayerDataService:LoadPlayerData(player: Player): PlayerData?
 		task.wait()
 	end
 
-	warn("profile.Data", profile.Data)
+	-- warn("profile.Data", profile.Data)
 
 	return profile.Data
 
@@ -115,7 +115,6 @@ local function OnPlayerAdded(player: Player)
 
 	-- Load and session-lock the profile asynchronously
 	local profile: Profile? = PlayerProfileStore:StartSessionAsync(profileKey)
-	warn("profile", profile)
 	if profile then
 		-- Profile successfully loaded and locked!
 
@@ -136,7 +135,6 @@ local function OnPlayerAdded(player: Player)
 
 		-- Store the active profile in the cache
 		Profiles[player] = profile
-		warn(`Profile loaded successfully for {player.Name} ({player.UserId})`)
 
 		-- Set up a function to run when the session ends
 		-- This replaces ListenToRelease from ProfileService
@@ -194,6 +192,49 @@ local function OnShutdown()
 
 	local duration = os.clock() - startTime
 	warn(`All profile sessions ended. Shutdown process took {string.format("%.2f", duration)} seconds.`)
+end
+
+-- playtester
+function PlayerDataService:Wipe(player: Player)
+	local TycoonService = require(game.ServerScriptService.Server.Services.TycoonService)
+	local ItemRenderService = require(game.ServerScriptService.Server.Services.ItemRenderService)
+	local prevdata = PlayerDataService:GetProfile(player).Data
+	local newItems = {}
+	for i, item in DefaultPlayerDataConfig.Items do
+		local newitem = table.clone(item)
+		newitem.UID = tostring(tick())
+		table.insert(newItems, newitem)
+	end
+	local defaultdata = {
+		Resources = table.clone(DefaultPlayerDataConfig.Resources),
+		Collector = DefaultPlayerDataConfig.Collector,
+		PlayerSettings = table.clone(prevdata.PlayerSettings),
+		Progress = table.clone(DefaultPlayerDataConfig.Progress),
+		Items = {}, --newItems,
+		ItemSlots = {},
+		OwnedItems = {},
+		UnlockedItems = {
+			["floor"] = true,
+		},
+		Multipliers = prevdata.Multipliers, -- retain bought items, should not just be multipliers actually
+	}
+	for name, data in PlayerDataService:GetProfile(player).Data do
+		local replacementdata = defaultdata[name]
+
+		PlayerDataService:GetProfile(player).Data[name] = replacementdata
+	end
+	TycoonService.RestartPlayer(player)
+	ItemRenderService.RestartPlayer(player)
+	local Item = require(game.ServerScriptService.Server.Classes.Item)
+
+	Item.new("daybloom", player)
+	Item.new("daybloom", player)
+
+	game.ReplicatedStorage
+		:WaitForChild("Shared")
+		:WaitForChild("Events")
+		:WaitForChild("PlayerDataUpdated")
+		:FireClient(player, PlayerDataService:GetProfile(player).Data)
 end
 
 -- Connect Player events

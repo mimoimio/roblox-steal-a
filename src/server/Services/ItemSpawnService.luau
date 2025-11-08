@@ -279,20 +279,27 @@ end
 function ItemSpawnService.start()
 	local Events = game.ReplicatedStorage.Shared.Events
 	local MoneyDisplayUpdate: UnreliableRemoteEvent = Events:WaitForChild("MoneyDisplayUpdate")
-	warn(itemConfigs)
 	local mdfolder = game.ReplicatedStorage.Shared.Models
 	for i, itemconfig in itemConfigs do
-		warn(i)
 		local model: Model = (mdfolder:FindFirstChild(itemconfig.ItemId) or mdfolder:FindFirstChild("error")):Clone()
+		model.PrimaryPart.Anchored = true
 		model.Parent = workspace
-		model:PivotTo(CFrame.new(i * 10, 10, 10))
+		model:PivotTo(CFrame.new(i * 10, 1, 10))
+
+		-- Create a 4x1x4 "plate" part and pivot it to the same CFrame as the model
+		local plate = Instance.new("Part")
+		plate.Name = "plate"
+		plate.Size = Vector3.new(5, 1, 5)
+		plate.Anchored = true
+		plate.Position = model.PrimaryPart.Position
+		plate.CFrame = model.PrimaryPart.CFrame
+		plate.Parent = workspace
+
 		local pp = Instance.new("ProximityPrompt", model)
 		pp.ActionText = itemconfig.Price or "-" .. " coins"
 		pp.ObjectText = itemconfig.DisplayName
 		pp.KeyboardKeyCode = Enum.KeyCode.F
-		task.delay(1, function()
-			model.PrimaryPart.Anchored = true
-		end)
+		pp.RequiresLineOfSight = false
 		pp.Triggered:Connect(function(player)
 			local pd = PlayerData.Collections[player]
 			local money = pd.Resources.Money
