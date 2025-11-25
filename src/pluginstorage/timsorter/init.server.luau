@@ -54,7 +54,10 @@ local function saveConfigs(configs: { any })
 		if configData.Prefab then
 			table.insert(
 				lines,
-				string.format('\t\tPrefab = workspace.Items.Value:FindFirstChild("%s"),', configData.ItemId)
+				string.format(
+					'\t\tPrefab = workspace.itemfolderRefInstance.Value:FindFirstChild("%s"),',
+					configData.ItemId
+				)
 			)
 		end
 

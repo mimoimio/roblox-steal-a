@@ -1,9 +1,6 @@
---[[
-	Client-side component that creates a beam from the player to the next unlocked button
-	Renders a toggle button in the HUD to enable/disable the beam
-]]
-
 local React = require(game.ReplicatedStorage.Packages.React)
+local textsize = require(script.Parent.textsize)
+local e = React.createElement
 local Players = game:GetService("Players")
 
 local player = Players.LocalPlayer
@@ -261,6 +258,8 @@ local function BeamToNextButton(props)
 			Text = beamEnabled and "Next ✓" or "Next ✗",
 			Active = false,
 			-- TextColor3 = beamEnabled and Color3.new(0.5, 1, 0.5) or Color3.new(1, 0.5, 0.5),
+		}, {
+			UITextSizeConstraint = e(textsize, { Min = 14, Max = 14 }),
 		}),
 	})
 end

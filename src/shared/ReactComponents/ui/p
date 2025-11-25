@@ -1,9 +1,0 @@
-local React = require(game.ReplicatedStorage.Packages.React)
-
-local function p(props)
-	return React.createElement("TextLabel", {
-		Text = props.Text or "TextLabel",
-	})
-end
-
-return p

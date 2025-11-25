@@ -50,6 +50,7 @@ export type PlayerData = {
 	ItemSlots: ItemSlots,
 	Multipliers: { [string]: Multiplier }, -- each multiplier adds to a total final multiplier value
 	AutoCollect: boolean,
+	Rewards: { [string]: { string } }?, -- slot number to array of 3 item ids
 }
 
 export type VariationConfig = {

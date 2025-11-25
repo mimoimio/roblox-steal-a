@@ -7,6 +7,11 @@ local TS = game:GetService("TweenService")
 local OPEN_POS = UDim2.new(0.5, 0, 0.5, 0)
 local CLOSED_POS = UDim2.new(0.5, 0, -0.5, 0)
 
+local Events = game.ReplicatedStorage.Shared.Events
+local GetTotalItemCount: RemoteFunction = Events:WaitForChild("GetTotalItemCount")
+local GetOwnedItems: RemoteFunction = Events:WaitForChild("GetOwnedItems")
+local OwnedItemsUpdated: RemoteEvent = Events:WaitForChild("OwnedItemsUpdated")
+
 local function Settings(props: {
 	SettingsOpen: boolean,
 	PlayerData: PlayerData,
@@ -23,22 +28,17 @@ local function Settings(props: {
 	-- Fetch total item count from server
 	-- Fetch total item count and owned items from server, and listen for updates
 	React.useEffect(function()
-		local Events = game.ReplicatedStorage.Shared.Events
-
 		-- Get total item count
-		local GetTotalItemCount: RemoteFunction = Events:WaitForChild("GetTotalItemCount")
 		local count = GetTotalItemCount:InvokeServer()
 		setTotalItemCount(count)
 
 		-- Get owned items
-		local GetOwnedItems: RemoteFunction = Events:WaitForChild("GetOwnedItems")
 		local owned = GetOwnedItems:InvokeServer()
 		if owned and type(owned) == "table" then
 			setOwnedItems(owned)
 		end
 
 		-- Listen for updates to owned items
-		local OwnedItemsUpdated: RemoteEvent = Events:WaitForChild("OwnedItemsUpdated")
 		local connection = OwnedItemsUpdated.OnClientEvent:Connect(function(newOwned)
 			if newOwned and type(newOwned) == "table" then
 				setOwnedItems(newOwned)
@@ -110,10 +110,10 @@ local function Settings(props: {
 		ref = FrameRef,
 	}, {
 
-		WipeButton = React.createElement("TextButton", {
+		RebirthButton = React.createElement("TextButton", {
 			Size = UDim2.new(0, 100, 0, 50),
 			Position = UDim2.new(0, 110, 0, 0),
-			Text = "Wipe Data\n(Playtester tool)",
+			Text = "Rebirth (+5%)",
 			BackgroundColor3 = Color3.new(0.8, 0.2, 0.2),
 			Font = "FredokaOne",
 			TextSize = 14,

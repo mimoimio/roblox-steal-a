@@ -3,8 +3,7 @@ type PlayerData = sharedtypes.PlayerData
 local React = require(game.ReplicatedStorage.Packages.React)
 local e = React.createElement
 local useEffect = React.useEffect
-local rounded = require(script.Parent.ui.rounded)
-local padding = require(script.Parent.ui.padding)
+local rf = game.ReplicatedStorage.Shared.Events:WaitForChild("GetPlayerSettings")
 
 local OPEN_SOUND = Instance.new("Sound", game.Players.LocalPlayer)
 OPEN_SOUND.SoundId = "rbxassetid://9117231552"
@@ -60,8 +59,6 @@ local function Music(props: { PlayerData: PlayerData })
 	-- fetch player settings and set initial volume; render nothing until this completes
 	useEffect(function()
 		local ok, settings = pcall(function()
-			local rf = game.ReplicatedStorage.Shared.Events:WaitForChild("GetPlayerSettings")
-			warn("rf", rf)
 			if rf and rf:IsA("RemoteFunction") then
 				return rf:InvokeServer()
 			end
@@ -158,7 +155,7 @@ local function Music(props: { PlayerData: PlayerData })
 			tweenRef.current:Cancel()
 			tweenRef.current = nil
 		end
-
+		local connections = {}
 		if props.MusicOpen then
 			setPhase("opening")
 			setVisible(true) -- show immediately
@@ -168,7 +165,7 @@ local function Music(props: { PlayerData: PlayerData })
 				{ Size = OPEN_SIZE, Position = OPEN_POS }
 			)
 			tweenRef.current = tween
-			tween.Completed:Connect(function(playbackState)
+			connections["nah"] = tween.Completed:Connect(function(playbackState)
 				if playbackState == Enum.PlaybackState.Completed then
 					setPhase("open")
 				end
@@ -185,13 +182,18 @@ local function Music(props: { PlayerData: PlayerData })
 			game.ReplicatedStorage.Shared.Events.SetPlayerSettings:FireServer({ MusicVolume = Volume })
 			local tween = TS:Create(frame, TweenInfo.new(animDur), { Size = CLOSED_SIZE, Position = CLOSED_POS })
 			tweenRef.current = tween
-			tween.Completed:Connect(function(playbackState)
+			connections["yeah"] = tween.Completed:Connect(function(playbackState)
 				if playbackState == Enum.PlaybackState.Completed then
 					setPhase("closed")
 					setVisible(false) -- hide after close finishes
 				end
 			end)
 			tween:Play()
+		end
+		return function()
+			for i, conn in connections do
+				conn:Disconnect()
+			end
 		end
 	end, { props.MusicOpen })
 

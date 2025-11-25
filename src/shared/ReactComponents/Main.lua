@@ -30,14 +30,17 @@ type Item = {
 local useToast = require(script.Parent.Toasts).useToast
 local Inventory = require(script.Parent.Inventory)
 local Settings = require(script.Parent.Settings)
+
 local Shop = require(script.Parent.Shop)
 local PlaceItem = require(script.Parent.PlaceItem)
 local SellItem = require(script.Parent.SellItem)
 local HUD = require(script.Parent.HUD)
 local Music = require(script.Parent.Music)
+local Reward = require(script.Parent.Reward)
+local NpcDialogue = require(script.Parent.NpcDialogue)
 
 type InventoryProps = { PlayerData: PlayerData, InventoryOpen: boolean }
-type Panel = "none" | "inventory" | "settings" | "shop" | "mustard" | "music" | "placeitem"
+type Panel = "none" | "inventory" | "settings" | "shop" | "mustard" | "music" | "placeitem" | "itemshop"
 type Slot = "Slot1" | "Slot2" | "Slot3" | "Slot4" | "Slot5" | "Slot6"
 
 function fetchPlayerData()
@@ -47,7 +50,11 @@ function fetchPlayerData()
 end
 local ItemDict: { [string]: Item } = {}
 
+local avg50 = 0
+
 local function Main(props)
+	-- debug.profilebegin("B_InventoryRender")
+	local start = tick()
 	local toast = useToast()
 	local items: { Item }, setItems = useState({})
 	local activePanel, setActivePanel = React.useState("none" :: Panel)
@@ -55,15 +62,16 @@ local function Main(props)
 	local strictPanelRef = useRef("none")
 	local placeSlot: Slot?, setPlaceSlot = useState(nil)
 
+	local SHOWBEAM, setSHOWBEAM = useState(true)
+
 	local submitRef = useRef()
 	local PlayerData: PlayerData?, setPlayerData: (PlayerData: PlayerData) -> nil =
 		React.useState(fetchPlayerData() :: PlayerData?)
-	local isMountedRef = useRef()
 	local PlaceItemOpen = activePanel == "placeitem"
 	local SellItemOpen = activePanel == "sellitem"
-	local SettingsOpen = activePanel == "settings"
-	local InventoryOpen = activePanel == "inventory"
 	local MusicOpen = activePanel == "music"
+	local RewardOpen = activePanel == "reward"
+	local InventoryOpen = activePanel == "inventory"
 	local ShopOpen = activePanel == "shop"
 
 	-- Toggle helpers
@@ -78,6 +86,27 @@ local function Main(props)
 			else
 				return panel
 			end
+		end)
+	end
+
+	local function handleSellItem(itemUID)
+		-- Fire server
+		game.ReplicatedStorage.Shared.Events:WaitForChild("SellItem"):FireServer(itemUID)
+
+		-- Immediately update local state (optimistic)
+		setPlayerData(function(prevData)
+			local newData = table.clone(prevData)
+
+			-- Clone Items array and filter out the sold item
+			local newItems = {}
+			for _, item in ipairs(prevData.Items or {}) do
+				if item.UID ~= itemUID then
+					table.insert(newItems, item)
+				end
+			end
+
+			newData.Items = newItems
+			return newData
 		end)
 	end
 
@@ -105,16 +134,18 @@ local function Main(props)
 	--[[ MOUNT HANDLER ]]
 	React.useEffect(function()
 		local Events = game.ReplicatedStorage.Shared:WaitForChild("Events")
-
+		local GameCompleted = game.ReplicatedStorage.Shared.Events:WaitForChild("GameCompleted")
 		local GetItems: RemoteFunction = Events:WaitForChild("GetItems")
 		local ItemUpdated: RemoteEvent = Events:WaitForChild("ItemUpdated")
 		local ItemSlotsUpdate: RemoteEvent = Events:WaitForChild("ItemSlotsUpdate")
 		local PlaceItemEvent: RemoteEvent = Events:WaitForChild("PlaceItem")
-		local SellItemsEvent: RemoteEvent = Events:WaitForChild("SellItems")
-		local MainShopEvent: RemoteEvent = Events:WaitForChild("MainShop")
+		local PlayerDataUpdated: RemoteEvent = Events:WaitForChild("PlayerDataUpdated")
 		local Ping: RemoteEvent = Events:WaitForChild("Ping")
-		local linvelConn
+		-- Track previous item UIDs for pickup detection
+		local previousItemUids = {}
+
 		local connections = {
+
 			--[[ KEYBINDS ================================]]
 			keybindconnection = UserInputService.InputBegan:Connect(function(io, gp)
 				-- Respect gameProcessed
@@ -122,52 +153,15 @@ local function Main(props)
 					return
 				end
 				if io.KeyCode == Enum.KeyCode.E then
+					debug.profilebegin("ACTION_Press_E")
 					toggle("inventory")
-				elseif io.KeyCode == Enum.KeyCode.N then
-					toggle("music")
+					debug.profileend()
 				elseif io.KeyCode == Enum.KeyCode.C then
 					toggle("settings")
-				elseif io.KeyCode == Enum.KeyCode.P then
+				-- elseif io.KeyCode == Enum.KeyCode.R then
+				-- 	toggle("reward")
+				elseif io.KeyCode == Enum.KeyCode.G then
 					toggle("shop")
-				elseif io.KeyCode == Enum.KeyCode.M then
-					toggle("mustard")
-				elseif io.KeyCode == Enum.KeyCode.LeftShift then
-					warn("Shifted")
-
-					-- local p = game.Players.LocalPlayer
-					-- local char = p.Character or p.CharacterAdded:Wait()
-					-- local linVel = Instance.new("LinearVelocity", char.PrimaryPart)
-					-- local attachment = Instance.new("Attachment", char.PrimaryPart)
-					-- linVel.MaxForce = 100000
-					-- linVel.Attachment0 = attachment
-					-- local start = 1
-					-- if linvelConn then
-					-- 	linvelConn:Disconnect()
-					-- end
-					-- local iniVel = char.PrimaryPart.AssemblyLinearVelocity
-					-- warn(iniVel.Magnitude)
-					-- linvelConn = game:GetService("RunService").Stepped:Connect(function(t, dt)
-					-- 	start -= dt
-					-- 	linVel.VectorVelocity = ((char.PrimaryPart:GetPivot()).LookVector + Vector3.new(0, 0.5, 0))
-					-- 			* 100
-					-- 			* (math.max(start, 0))
-					-- 		+ char.Humanoid.MoveDirection * char.Humanoid.WalkSpeed
-					-- 		+ iniVel
-					-- 	iniVel = Vector3.zero
-					-- 	-- + Vector3.new(0, start - 1, 0) * workspace.Gravity
-					-- end)
-
-					-- task.delay(1 / 60, function()
-					-- 	if linvelConn then
-					-- 		linvelConn:Disconnect()
-					-- 	end
-					-- 	if linVel then
-					-- 		linVel:Destroy()
-					-- 	end
-					-- 	if attachment then
-					-- 		attachment:Destroy()
-					-- 	end
-					-- end)
 				end
 			end),
 
@@ -224,7 +218,7 @@ local function Main(props)
 							sound:Destroy()
 						end)
 						task.spawn(function()
-							local sound: Sound? = game.ReplicatedStorage.Shared.SFX.Ping :WaitForChild("Ping"):Clone()
+							local sound: Sound? = game.ReplicatedStorage.Shared.SFX.Ping:WaitForChild("Ping"):Clone()
 							sound.Parent = game.Players.LocalPlayer
 							if not sound.IsLoaded then
 								sound.Loaded:Wait()
@@ -247,6 +241,25 @@ local function Main(props)
 					for i, newItem in fetchedItems do
 						ItemDict[newItem.UID] = newItem
 						newItemDict[newItem.UID] = newItem
+
+						-- Check if this is a new item (not in previous items)
+						if not previousItemUids[newItem.UID] then
+							-- New item picked up
+							toast.open("+ " .. newItem.DisplayName)
+							local sound: Sound = game.ReplicatedStorage.Shared.SFX:FindFirstChild("PickUp")
+							if sound then
+								task.spawn(function()
+									sound = sound:Clone()
+									sound.Parent = game.Players.LocalPlayer
+									if not sound.IsLoaded then
+										sound.Loaded:Wait()
+									end
+									sound:Play()
+									sound.Ended:Wait()
+									sound:Destroy()
+								end)
+							end
+						end
 					end
 
 					local removedCount = 0
@@ -262,42 +275,45 @@ local function Main(props)
 						toast.open("Removed " .. removedCount .. " items", 3, Color3.new(1, 0, 0))
 					end
 
+					-- Update previous items tracking
+					previousItemUids = newItemDict
+
 					return new
 				end)
 				setItems(fetchedItems)
 			end),
 
-			PlayerDataUpdated = game.ReplicatedStorage
-				:WaitForChild("Shared")
-				:WaitForChild("Events")
-				:WaitForChild("PlayerDataUpdated").OnClientEvent
-				:Connect(function(pd: PlayerData)
-					setPlayerData(function(prev)
-						return table.clone(pd)
-					end)
-				end),
+			PlayerDataUpdated = PlayerDataUpdated.OnClientEvent:Connect(function(pd: PlayerData)
+				setPlayerData(function(prev)
+					return table.clone(pd)
+				end)
+			end),
 
 			--[[ PLACE ITEM PROMPT EVENT ================================]]
 			placeitemconneciton = PlaceItemEvent.OnClientEvent:Connect(function(SlotNum: Slot)
-				toggle("placeitem")
+				if SlotNum ~= placeSlot or not placeSlot then
+					toggle("placeitem")
+				end
 				setPlaceSlot(SlotNum)
 
 				submitRef.current = function(UID: string)
-					warn("Submitting slotnum", SlotNum)
 					PlaceItemEvent:FireServer(SlotNum, UID)
-					setActivePanel("none")
-					setPlaceSlot(nil)
+					local sound: Sound = game.ReplicatedStorage.Shared.SFX:FindFirstChild("PickUp")
+					if sound then
+						task.spawn(function()
+							sound = sound:Clone()
+							sound.Parent = game.Players.LocalPlayer
+							if not sound.IsLoaded then
+								sound.Loaded:Wait()
+							end
+							sound:Play()
+							sound.Ended:Wait()
+							sound:Destroy()
+						end)
+					end
+					-- setActivePanel("none")
+					-- setPlaceSlot(nil)
 				end
-			end),
-			--[[ SELL ITEM PROMPT EVENT ================================]]
-			sellitemconneciton = SellItemsEvent.OnClientEvent:Connect(function()
-				toggleStrictPanel("sellitem")
-				-- toggle("sellitem")
-			end),
-			--[[ MAIN SHOP ]]
-			mainshopconneciton = MainShopEvent.OnClientEvent:Connect(function()
-				toggleStrictPanel("mainshop")
-				-- toggle("mainshop")
 			end),
 
 			--[[ ITEM SLOTS CHANGED EVENT ================================]]
@@ -309,52 +325,9 @@ local function Main(props)
 
 					local clone = table.clone(prev)
 					clone.ItemSlots = ItemSlots
+
 					return clone
 				end)
-			end),
-
-			--[[ STRANGE SPAWNED EVENT ]]
-			strange = Events:WaitForChild("StrangeSpawned").OnClientEvent:Connect(function()
-				toast.open("Strange Item Spawned!", 8, Color3.new(0.9, 0.4, 0))
-				local sound: Sound = game.ReplicatedStorage.Shared.SFX:FindFirstChild("BassEcho")
-				if sound then
-					task.spawn(function()
-						sound = sound:Clone()
-						sound.Parent = game.Players.LocalPlayer
-						if not sound.IsLoaded then
-							sound.Loaded:Wait()
-						end
-						sound:Play()
-						sound.Ended:Wait()
-						sound:Destroy()
-					end)
-				end
-				local sound2 = game.ReplicatedStorage.Shared.SFX:FindFirstChild("Bass")
-				if sound2 then
-					task.spawn(function()
-						sound2 = sound2:Clone()
-						sound2.Parent = game.Players.LocalPlayer
-						if not sound2.IsLoaded then
-							sound2.Loaded:Wait()
-						end
-						sound2:Play()
-						sound2.Ended:Wait()
-						sound2:Destroy()
-					end)
-				end
-				local sound3 = game.ReplicatedStorage.Shared.SFX:FindFirstChild("Bass2")
-				if sound3 then
-					task.spawn(function()
-						sound3 = sound3:Clone()
-						sound3.Parent = game.Players.LocalPlayer
-						if not sound3.IsLoaded then
-							sound3.Loaded:Wait()
-						end
-						sound3:Play()
-						sound3.Ended:Wait()
-						sound3:Destroy()
-					end)
-				end
 			end),
 
 			--[[ EXCEEDING ITEM LIMIT ]]
@@ -374,6 +347,11 @@ local function Main(props)
 					end)
 				end
 			end),
+
+			--[[ GAME COMPLETED ]]
+			GameCompleted.OnClientEvent:Connect(function(pd, completedTime, completedMoney)
+				setPlayerData(pd)
+			end),
 		}
 
 		--[[ INITIALIZING ITEMS ================================]]
@@ -382,9 +360,9 @@ local function Main(props)
 		setItems(fetchedItems)
 		for i, item in fetchedItems do
 			ItemDict[item.UID] = item
+			previousItemUids[item.UID] = true
 		end
 
-		isMountedRef.current = true
 		return function()
 			for i, c in connections do
 				c:Disconnect()
@@ -393,72 +371,71 @@ local function Main(props)
 		end
 	end, {})
 
-	--[[ Rarely used panels]]
-	local Panel = PlaceItemOpen
-			and e(PlaceItem, {
-				Items = items,
-				PlaceItemOpen = PlaceItemOpen,
-				clicked = function(textbutton: TextButton)
-					local UID = textbutton:GetAttribute("UID") :: string
-					if submitRef and typeof(submitRef.current) == "function" then
-						submitRef.current(UID)
-						setActivePanel("none")
-						setItems(function(prev)
-							local clone = table.clone(prev)
-							for i, item in clone do
-								if item.UID == UID then
-									item.Entered = true
-								end
-							end
-							return clone
-						end)
-					else
-						-- warn("No SubmitRef")
-					end
-				end,
-				PlacedItemUids = PlayerData and PlayerData.ItemSlots and (function()
-					local PlacedItemUids = {}
-					for slot, itemuid in PlayerData.ItemSlots do
-						PlacedItemUids[itemuid] = true
-					end
-					return PlacedItemUids
-				end)() or {},
-				PlaceSlot = placeSlot,
-				close = function()
-					setActivePanel("none")
-				end,
-			})
-		or SettingsOpen and e(Settings, {
-			SettingsOpen = SettingsOpen,
-			PlayerData = PlayerData,
-		})
-		or SellItemOpen
-			and e(SellItem, {
-				Items = items,
-				SellItemOpen = SellItemOpen,
-				close = function()
-					toggleStrictPanel("sellitem")
-				end,
-				sell = function(selectedItems: { string })
-					(game.ReplicatedStorage.Shared.Events.SellItems :: RemoteEvent):FireServer(selectedItems)
-				end,
-				PlacedItemUids = PlayerData.ItemSlots and (function()
-					local PlacedItemUids = {}
-					for slot, itemuid in PlayerData.ItemSlots do
-						PlacedItemUids[itemuid] = true
-					end
-					return PlacedItemUids
-				end)() or {},
-			})
+	-- check itemslots if none highlight
+	useEffect(function()
+		local highlights = {}
+		if not PlayerData then
+			return
+		end
+
+		for slotnum, itemid in PlayerData.ItemSlots do
+			if itemid == "none" then
+				local model = workspace[game.Players.LocalPlayer.Name .. "ItemRenderer"]
+					:WaitForChild("ItemSlots")
+					:FindFirstChild(slotnum)
+				if not model then
+					continue
+				end
+				local highlight = Instance.new("Highlight", model)
+				highlight.FillTransparency = 0.3
+				local billboardGui = Instance.new("BillboardGui", model)
+				billboardGui.Size = UDim2.new(0, 50, 0, 50)
+				billboardGui.AlwaysOnTop = true
+				billboardGui.Brightness = 10
+				billboardGui.Adornee = model
+				billboardGui.Name = "HighlightBillboard"
+
+				local textLabel = Instance.new("TextLabel", billboardGui)
+				textLabel.Size = UDim2.new(1, 0, 1, 0)
+				textLabel.ZIndex = 100
+				textLabel.BackgroundTransparency = 1
+				textLabel.Text = "!"
+				textLabel.TextStrokeColor3 = Color3.new(1, 0, 0)
+				textLabel.TextStrokeTransparency = 0
+				textLabel.TextColor3 = Color3.new(1, 1, 1)
+				textLabel.TextScaled = true
+				textLabel.Font = Enum.Font.GothamBold
+				table.insert(highlights, highlight)
+				table.insert(highlights, billboardGui)
+			end
+		end
+		return function()
+			if not highlights then
+				return
+			end
+			for i, hl in highlights do
+				hl:Destroy()
+			end
+		end
+	end, { PlayerData })
 
 	--[[ RENDER ]]
+	-- debug.profileend()
+	local ended = tick() - start
+
 	return e("Frame", {
 		Size = UDim2.new(1, 0, 1, 0),
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0, 0, 0, 0),
 		ZIndex = 1,
 	}, {
-		Music = e(Music, {
+		-- e = e("TextLabel", {
+		-- 	AutomaticSize = Enum.AutomaticSize.XY,
+		-- 	Font = "FredokaOne",
+		-- 	TextSize = 14,
+		-- 	Text = tostring(ended),
+		-- }),
+		Settings = e(Music, {
 			MusicOpen = MusicOpen,
 			PlayerData = PlayerData,
 			close = function()
@@ -466,15 +443,16 @@ local function Main(props)
 			end,
 		}),
 		Shop = e(Shop, {
-			IsOpen = ShopOpen,
-			OnClose = function()
+			ShopOpen = ShopOpen,
+			PlayerData = PlayerData,
+			close = function()
 				toggle("shop")
 			end,
 		}),
-		Inventory = e(Inventory, {
+		Inventory = InventoryOpen and e(Inventory, {
 			PlayerData = PlayerData,
 			InventoryOpen = InventoryOpen,
-			isMountedRef = isMountedRef,
+			onSellItem = handleSellItem,
 			close = function()
 				toggle("inventory")
 			end,
@@ -487,13 +465,12 @@ local function Main(props)
 			end)() or {},
 		}),
 		HUD = e(HUD, {
+			activePanel = activePanel,
 			PlayerData = PlayerData,
+			SHOWBEAM = SHOWBEAM,
 			ItemAmt = PlayerData and PlayerData.Items and #PlayerData.Items,
 			OnInventoryButtonClick = function()
 				toggle("inventory")
-			end,
-			OnSettingsButtonClick = function()
-				toggle("settings")
 			end,
 			OnMusicButtonClick = function()
 				toggle("music")
@@ -505,6 +482,7 @@ local function Main(props)
 		Tutorial = not PlayerData.TutorialFinished
 				and e(require(script.Parent.Tutorial), {
 					PlayerData = PlayerData,
+					activePanel = activePanel,
 					onFinish = function()
 						-- Optimistically mark tutorial finished, then refresh authoritative PlayerData from server
 						setPlayerData(function(prev)
@@ -522,14 +500,105 @@ local function Main(props)
 					end,
 				})
 			or nil,
-		Panel = Panel,
+		BroomstickTutorial = not PlayerData.BroomTutorialFinished
+				and e(require(script.Parent.BroomstickTutorial), {
+					PlayerData = PlayerData,
+					setSHOWBEAM = setSHOWBEAM,
+					onFinish = function()
+						-- Optimistically mark tutorial finished, then refresh authoritative PlayerData from server
+						setPlayerData(function(prev)
+							local clone = table.clone(prev or fetchPlayerData())
+							clone.TutorialFinished = true
+							return clone
+						end)
+						-- Refresh from server asynchronously
+						task.spawn(function()
+							local pd = fetchPlayerData()
+							if pd then
+								setPlayerData(pd)
+							end
+						end)
+					end,
+				})
+			or nil,
+		Completed = PlayerData.GameCompleted and e(require(script.Parent.Completed), {
+			PlayerData = PlayerData,
+		}),
+		NpcDialogue = e(NpcDialogue),
+		PlaceItem = PlaceItemOpen and e(PlaceItem, {
+			Items = items,
+			PlaceItemOpen = PlaceItemOpen,
+			clicked = function(textbutton: TextButton)
+				local UID = textbutton:GetAttribute("UID") :: string
+				if submitRef and typeof(submitRef.current) == "function" then
+					submitRef.current(UID)
+					-- setActivePanel("none")
+					setItems(function(prev)
+						local clone = table.clone(prev)
+						for i, item in clone do
+							if item.UID == UID then
+								item.Entered = true
+							end
+						end
+						return clone
+					end)
+					local sound: Sound = game.ReplicatedStorage.Shared.SFX:FindFirstChild("PickUp")
+					if sound then
+						task.spawn(function()
+							sound = sound:Clone()
+							sound.Parent = game.Players.LocalPlayer
+							if not sound.IsLoaded then
+								sound.Loaded:Wait()
+							end
+							sound:Play()
+							sound.Ended:Wait()
+							sound:Destroy()
+						end)
+					end
+				else
+					-- warn("No SubmitRef")
+				end
+			end,
+			PlacedItemUids = PlayerData and PlayerData.ItemSlots and (function()
+				local PlacedItemUids = {}
+				for slot, itemuid in PlayerData.ItemSlots do
+					PlacedItemUids[itemuid] = true
+				end
+				return PlacedItemUids
+			end)() or {},
+			PlaceSlot = placeSlot,
+			close = function()
+				setPlaceSlot(nil)
+				setActivePanel("none")
+			end,
+		}),
+		Reward = RewardOpen and e(Reward, {
+			RewardOpen = RewardOpen,
+			PlayerData = PlayerData,
+		}),
+		SellItem = SellItemOpen and e(SellItem, {
+			Items = items,
+			SellItemOpen = SellItemOpen,
+			close = function()
+				toggleStrictPanel("sellitem")
+			end,
+			sell = function(selectedItems: { string })
+				(game.ReplicatedStorage.Shared.Events.SellItems :: RemoteEvent):FireServer(selectedItems)
+			end,
+			PlacedItemUids = PlayerData.ItemSlots and (function()
+				local PlacedItemUids = {}
+				for slot, itemuid in PlayerData.ItemSlots do
+					PlacedItemUids[itemuid] = true
+				end
+				return PlacedItemUids
+			end)() or {},
+		}),
 		Padding = e("UIPadding", {
 			PaddingTop = UDim.new(0, 16),
 			PaddingBottom = UDim.new(0, 16),
 			PaddingLeft = UDim.new(0, 16),
 			PaddingRight = UDim.new(0, 16),
 		}, {}),
-		-- test = e(require(script.Parent.test)),
 	})
 end
 

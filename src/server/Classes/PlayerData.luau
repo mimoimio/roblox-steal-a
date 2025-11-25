@@ -4,6 +4,7 @@ export type PlayerData = sharedtypes.PlayerData
 type ItemConfig = sharedtypes.ItemConfig
 
 local PlayerDataService = require(game.ServerScriptService.Server.Services.PlayerDataService)
+local Alyanum = require(game.ReplicatedStorage.Packages.Alyanum)
 
 local ItemSlots = require(game.ServerScriptService.Server.Classes.ItemSlots)
 local PlayerSettings = require(game.ServerScriptService.Server.Classes.PlayerSettings)
@@ -20,6 +21,23 @@ PlayerData.Collections = {} :: { [Player]: PlayerData }
 PlayerData.Owners = {} :: { [PlayerData]: Player }
 local Changed = Instance.new("BindableEvent")
 PlayerData.Changed = Changed.Event
+
+-- Setup leaderboard updater
+Changed.Event:Connect(function(data: PlayerData, player: Player)
+	if not player or not player:IsDescendantOf(game.Players) then
+		return
+	end
+
+	local leaderstats = player:FindFirstChild("leaderstats")
+	if not leaderstats then
+		return
+	end
+
+	local cash = leaderstats:FindFirstChild("Cash")
+	if cash and cash:IsA("StringValue") then
+		cash.Value = Alyanum.new(data and data.Resources and data.Resources.Money or 0):toString()
+	end
+end)
 
 function PlayerData.new(player: Player): PlayerData?
 	local savedPD = PlayerDataService:LoadPlayerData(player) -- fetches saved pd or default. nil if DataStore error

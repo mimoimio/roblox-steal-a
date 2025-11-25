@@ -5,14 +5,10 @@
 	- Visualizes the dependency tree in the workspace.
 ]]
 
-if not game.GameId == 8782368102 then
+if game.GameId ~= 8782368102 then
 	warn("This plugin is specific to one game currently")
 	return
 end
-
-local React = require(script.Packages.React)
-local ReactRoblox = require(script.Packages.ReactRoblox)
-local Alyanum = require(script.Packages.Alyanum)
 
 -- Roblox Services
 local Selection = game:GetService("Selection")
@@ -38,7 +34,6 @@ local toolbar = plugin:CreateToolbar("Tycoon Tree Builder")
 local refreshButton = toolbar:CreateButton("Refresh", "Load/Refresh from the config module", "rbxassetid://8508980527")
 local createButton = toolbar:CreateButton("Create", "Create configs from selection", "rbxassetid://109251559")
 local generateButton = toolbar:CreateButton("Complete", "Save changes to the ModuleScript", "rbxassetid://732391129")
-
 local destroyvisualsButton =
 	toolbar:CreateButton("Hide", "Save changes to the ModuleScript", "rbxassetid://112162848742561")
 local togglePlugin = toolbar:CreateButton("Toggle", "", "rbxassetid://112162848742561")
@@ -93,18 +88,20 @@ local function destroyVisuals()
 	visualsFolder:ClearAllChildren()
 end
 mainWidget.Enabled = visible
+local itemfolderRefInstance: ObjectValue
+itemfolderRefInstance = workspace.itemfolderRefInstance :: ObjectValue
+
 local toggleVisible = function()
-	local itemfolder = workspace.Items :: ObjectValue
 	local OriginalBase = workspace.OriginalBase :: ObjectValue
 	if visible then -- closing
 		onGenerateModule()
 		destroyVisuals()
 		mainWidget.Enabled = false
-		itemfolder.Value.Parent = game.ServerStorage
+		itemfolderRefInstance.Value.Parent = game.ServerStorage
 		OriginalBase.Value.Parent = game.ServerStorage
 	else
 		mainWidget.Enabled = true
-		itemfolder.Value.Parent = workspace
+		itemfolderRefInstance.Value.Parent = workspace
 		OriginalBase.Value.Parent = workspace
 	end
 	visible = not visible
@@ -189,38 +186,6 @@ local function createVisuals()
 					nameBox.LayoutOrder = 1
 					nameBox.TextEditable = false
 					nameBox.ClearTextOnFocus = false
-					-- nameBox.FocusLost:Connect(function(enterpressed)
-					-- 	local name: string = tostring(nameBox.Text)
-					-- 	if not name or name:len() == 0 then
-					-- 		nameBox.Text = configData.ItemId
-					-- 		return
-					-- 	end
-					-- 	local alreadyused
-					-- 	for j, itemconfig in masterItemConfigs do
-					-- 		alreadyused = itemconfig.ItemId == name
-					-- 		if alreadyused then
-					-- 			break
-					-- 		end
-					-- 	end
-					-- 	if alreadyused then
-					-- 		warn("NAME ALREADY BEING USED")
-					-- 		nameBox.Text = configData.ItemId
-					-- 		return
-					-- 	end
-
-					-- 	for j, itemconfig in masterItemConfigs do
-					-- 		if not itemconfig.Unlocks or type(itemconfig.Unlocks) ~= "table" then
-					-- 			continue
-					-- 		end
-					-- 		local foundat = table.find(itemconfig.Unlocks, configData.Prefab.Name)
-					-- 		if foundat then
-					-- 			itemconfig.Unlocks[foundat] = name
-					-- 		end
-					-- 	end
-					-- 	configData.ItemId = name
-					-- 	configData.Prefab.Name = name
-					-- 	onGenerateModule()
-					-- end)
 
 					local label = Instance.new("TextBox", billboard)
 					label.Size = UDim2.new(1, 0, 0.3, 0)
@@ -430,7 +395,9 @@ local function createVisuals()
 					UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
 					local button = workspace.Button.Value:Clone()
+					button.Name = "Button_" .. configData.DisplayName or configData.ItemId
 					table.insert(existingVisuals, button)
+
 					button:PivotTo(configData.Prefab:GetPivot())
 					button.Parent = visualsFolder
 					button.PrimaryPart.BillboardGui.TextLabel.Text = configData.DisplayName or configData.ItemId
@@ -776,10 +743,13 @@ onGenerateModule = function()
 
 		-- Add the new Prefab attribute
 		if configData.Prefab then
-			-- right now just use workspace.Items folder, dont need to use GetFullName()
+			-- right now just use workspace.itemfolderRefInstance folder, dont need to use GetFullName()
 			table.insert(
 				lines,
-				string.format('\t\tPrefab = workspace.Items.Value:FindFirstChild("%s"),', configData.ItemId)
+				string.format(
+					'\t\tPrefab = workspace.itemfolderRefInstance.Value:FindFirstChild("%s"),',
+					configData.ItemId
+				)
 			)
 		end
 
@@ -850,6 +820,7 @@ local function onCreateFromSelection()
 	local selection = Selection:Get()
 	for i, selected: Instance in selection do
 		if selected:IsA("Model") then
+			selected.Parent = itemfolderRefInstance.Value
 			continue
 		end
 		task.spawn(function()
@@ -911,12 +882,12 @@ local function onCreateFromSelection()
 					uniqueChildId = newUID
 				end
 
-				local uniqueInFolder = workspace.Items.Value:FindFirstChild(uniqueChildId)
+				local uniqueInFolder = itemfolderRefInstance.Value:FindFirstChild(uniqueChildId)
 				while uniqueInFolder do
 					local newUID = generateUid()
 					warn("Item", uniqueChildId, "found in items folder, changing")
 					uniqueChildId = newUID
-					uniqueInFolder = workspace.Items.Value:FindFirstChild(uniqueChildId)
+					uniqueInFolder = itemfolderRefInstance.Value:FindFirstChild(uniqueChildId)
 				end
 
 				childModel.Name = uniqueChildId
@@ -1291,20 +1262,23 @@ local function recalculatePricesFromUI()
 		return
 	end
 
-	local baseCost = 0 -- The cost of the second item (index 2)
-	masterItemConfigs[1].Price = 0
-
+	local baseCost = 20 -- The cost of the second item (index 2)
+	masterItemConfigs[1].Price = 200
+	-- warn(#masterItemConfigs)
 	for i = 2, #masterItemConfigs do
 		local itemconfig = masterItemConfigs[i]
 
 		-- The new price is the baseCost multiplied by the multiplier,
 		-- raised to the power of its position in the list.
 		local itemtypecost = itemconfig.ItemSlot and 4 or 1
-		baseCost += itemconfig.ItemSlot and 50 or 0
 		itemconfig.Price = math.floor(
-			(baseCost + itemtypecost > 1 and 50 or 0) * itemtypecost * (multiplier ^ math.floor((i - 2) / 5))
-				+ 10 * (i - 2)
+			(baseCost + ((itemtypecost > 1) and itemtypecost or 0))
+					* itemtypecost
+					* (multiplier ^ math.floor((i - 1) / 5))
+				+ 1 * (i - 1)
 		)
+		-- itemconfig.Price = math.floor(baseCost * itemtypecost + 5 * i * multiplier ^ (math.floor(i / 10)))
+		baseCost += itemconfig.ItemSlot and itemtypecost * 5 or 0
 	end
 
 	onGenerateModule()
@@ -1443,8 +1417,8 @@ end)
 
 plugin.Unloading:Connect(function()
 	destroyVisuals()
-	local itemfolder = workspace.Items :: ObjectValue
+	local itemfolderRefInstance = workspace.itemfolderRefInstance :: ObjectValue
 	local OriginalBase = workspace.OriginalBase :: ObjectValue
-	itemfolder.Value.Parent = game.ServerStorage
+	itemfolderRefInstance.Value.Parent = game.ServerStorage
 	OriginalBase.Value.Parent = game.ServerStorage
 end)

@@ -18,10 +18,13 @@ end
 
 local DefaultPlayerData = {}
 
+local FIRSTUNLOCKEDITEMID = require(game.ServerScriptService.GeneratedItemConfigs)[1].ItemId
+
 function DefaultPlayerData.Get()
 	local DEFAULT_RESOURCES = {
-		Money = 200,
+		Money = 220,
 		Rate = 0,
+		SoulCrystal = 0,
 	}
 	local DEFAULT_SETTINGS = {
 		MusicMuted = false,
@@ -33,24 +36,24 @@ function DefaultPlayerData.Get()
 		Life = 1,
 	}
 	local DEFAULT_ITEMS: { Item } = {
-		{
-			UID = generateUID(),
-			VariationId = "none",
-			ItemId = "daybloom",
-			DisplayName = "Daybloom",
-			Price = 25,
-			TierId = "common",
-			Rate = 9,
-		},
-		{
-			UID = generateUID(),
-			VariationId = "none",
-			ItemId = "daybloom",
-			DisplayName = "Daybloom",
-			Price = 25,
-			TierId = "common",
-			Rate = 9,
-		},
+		-- {
+		-- 	UID = generateUID(),
+		-- 	VariationId = "none",
+		-- 	ItemId = "daybloom",
+		-- 	DisplayName = "Daybloom",
+		-- 	Price = 25,
+		-- 	TierId = "common",
+		-- 	Rate = 1,
+		-- },
+		-- {
+		-- 	UID = generateUID(),
+		-- 	VariationId = "none",
+		-- 	ItemId = "daybloom",
+		-- 	DisplayName = "Daybloom",
+		-- 	Price = 25,
+		-- 	TierId = "common",
+		-- 	Rate = 1,
+		-- },
 	}
 	local DEFAULT_ITEMSLOTS: ItemSlots = {
 		Slot1 = "none",
@@ -59,6 +62,9 @@ function DefaultPlayerData.Get()
 		Slot4 = "none",
 		Slot5 = "none",
 		Slot6 = "none",
+	}
+	local UnlockedItems = {
+		[FIRSTUNLOCKEDITEMID] = true,
 	}
 	return {
 		Resources = DEFAULT_RESOURCES,
@@ -71,6 +77,7 @@ function DefaultPlayerData.Get()
 		AutoCollect = false,
 		TutorialFinished = false,
 		OwnedItems = {},
+		UnlockedItems = UnlockedItems,
 	}
 end
 

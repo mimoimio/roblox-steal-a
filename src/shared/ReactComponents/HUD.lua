@@ -1,21 +1,11 @@
+local textsize = require(script.Parent.textsize)
 local React = require(game.ReplicatedStorage.Packages.React)
 local e = React.createElement
-local Alyanum = require(game.ReplicatedStorage.Packages.Alyanum)
-local SpecialEventsConfig = require(game.ReplicatedStorage.Shared.Configs.SpecialEventsConfig)
-local TS = game:GetService("TweenService")
-local Counter = require(script.Parent.counter)
 local BeamToNextButton = require(script.Parent.BeamToNextButton)
-local TopRightHud = require(script.Parent.TopRightHud)
 
 local function HUD(props)
 	local hudRef = React.useRef()
-
-	local PlayerData = props.PlayerData or {}
-	local Resources = PlayerData.Resources or {}
-	local rate, setRate = React.useState(Resources.Rate)
-	local money, setMoney = React.useState(Resources.Money)
 	local clock, setClock = React.useState(game.Lighting.ClockTime)
-	local multipliers, setMultipliers = React.useState(PlayerData.Multiplier or {})
 	-- Stopwatch state and effect (must be inside HUD for React to be defined)
 	local stopwatch, setStopwatch = React.useState("00:00")
 	React.useEffect(function()
@@ -39,55 +29,21 @@ local function HUD(props)
 	local specialEvents, setSpecialEvents = React.useState({})
 
 	React.useEffect(function()
-		if hudRef.current then
-			(hudRef.current :: Frame).Changed:Connect(function(property)
-				if property == "AbsoluteSize" then
-					warn("AbsoluteSize changed:", hudRef.current[property])
-				end
-			end)
-		else
-			warn("no hudref", hudRef.current)
-		end
 		local Events = game.ReplicatedStorage.Shared.Events
-		local ResourcesUpdated: RemoteEvent = Events:WaitForChild("ResourcesUpdated")
 		local SpecialEvents: RemoteEvent = Events:WaitForChild("SpecialEvents")
-		local MoneyDisplayUpdate: UnreliableRemoteEvent = Events:WaitForChild("MoneyDisplayUpdate")
-		local MultipliersUpdated: RemoteEvent = Events:WaitForChild("MultipliersUpdated")
-		local GetMultipliers: RemoteFunction = Events:WaitForChild("GetMultipliers")
 
 		local connections = {
-			rupdatec = ResourcesUpdated.OnClientEvent:Connect(function(resources: { Money: number, Rate: number })
-				setRate(resources.Rate)
-			end),
 			seconn = SpecialEvents.OnClientEvent:Connect(function(events)
-				setSpecialEvents(events or {})
-			end),
-			MoneyDisplayUpdate = MoneyDisplayUpdate.OnClientEvent:Connect(function(money, rate)
-				if not money then
-					return
-				end
-				setMoney(money)
-				setRate(rate)
-			end),
-			MultipliersUpdated = MultipliersUpdated.OnClientEvent:Connect(function(newMultipliers)
-				setMultipliers(newMultipliers or {})
+				-- setSpecialEvents(events or {})
 			end),
 		}
-		-- On first mount, invoke GetSpecialEvents and GetMultipliers
+		-- On first mount, invoke GetSpecialEvents
 		local GetSpecialEvents: RemoteFunction = Events:WaitForChild("GetSpecialEvents")
 		local ok, events = pcall(function()
 			return GetSpecialEvents:InvokeServer()
 		end)
 		if ok and type(events) == "table" then
 			setSpecialEvents(events)
-		end
-
-		-- Fetch initial multipliers
-		local ok2, mults = pcall(function()
-			return GetMultipliers:InvokeServer()
-		end)
-		if ok2 and type(mults) == "table" then
-			setMultipliers(mults)
 		end
 
 		return function()
@@ -111,43 +67,48 @@ local function HUD(props)
 		end
 	end, {})
 
-	local eventLabels = {
-		rounded = e(require(script.Parent.ui.rounded)),
+	local ownedItems, setOwnedItems = React.useState({})
+	local totalItemCount, setTotalItemCount = React.useState(0)
 
-		UIListLayout = e("UIListLayout", {
-			SortOrder = "LayoutOrder",
-			FillDirection = Enum.FillDirection.Horizontal,
-			HorizontalAlignment = Enum.HorizontalAlignment.Center,
-			VerticalAlignment = Enum.VerticalAlignment.Top,
-			HorizontalFlex = "Fill",
-			Padding = UDim.new(0, 10),
-		}),
-	}
-	local eventCount = 0
-	local sevents = ""
-	for eventId, _ in specialEvents do
-		eventCount += 1
-		local seventConfig = SpecialEventsConfig[eventId]
-		sevents ..= "\n" .. ([[<font color="#%s">%s</font>]]):format(
-			seventConfig and seventConfig.ColorPrimary and seventConfig.ColorPrimary:ToHex() or "ffffff",
-			seventConfig and seventConfig.DisplayName or eventId
-		)
+	React.useEffect(function()
+		local Events = game.ReplicatedStorage.Shared.Events
+
+		-- Get total item count
+		local GetTotalItemCount: RemoteFunction = Events:WaitForChild("GetTotalItemCount")
+		local count = GetTotalItemCount:InvokeServer()
+		setTotalItemCount(count)
+
+		-- Get owned items
+		local GetOwnedItems: RemoteFunction = Events:WaitForChild("GetOwnedItems")
+		local owned = GetOwnedItems:InvokeServer()
+		if owned and type(owned) == "table" then
+			setOwnedItems(owned)
+		end
+
+		-- Listen for updates to owned items
+		local OwnedItemsUpdated: RemoteEvent = Events:WaitForChild("OwnedItemsUpdated")
+		local connection = OwnedItemsUpdated.OnClientEvent:Connect(function(newOwned)
+			if newOwned and type(newOwned) == "table" then
+				setOwnedItems(newOwned)
+			end
+		end)
+
+		return function()
+			if connection then
+				connection:Disconnect()
+			end
+		end
+	end, {})
+
+	local ownedCount = 0
+	if ownedItems then
+		for _ in ownedItems do
+			ownedCount = ownedCount + 1
+		end
 	end
 
-	eventLabels["eventId"] = e("TextLabel", {
-		Name = "EventLabel",
-		BackgroundTransparency = 1,
-		Font = "FredokaOne",
-		TextSize = 24,
-		RichText = true,
-		TextStrokeTransparency = 0,
-		TextColor3 = Color3.new(1, 1, 1),
-		TextStrokeColor3 = Color3.new(0, 0, 0),
-		Text = sevents:len() > 0 and "Events: " .. sevents or "",
-		-- TextColor3 = Color3.new(1, 0.9, 0.3),
-		AutomaticSize = Enum.AutomaticSize.XY,
-		LayoutOrder = eventCount,
-	})
+	local progress = totalItemCount > 0 and (ownedCount / totalItemCount) or 0
+	local showProgress, setShowProgress = React.useState(true)
 
 	return e("Frame", {
 		Name = "HUD",
@@ -158,8 +119,8 @@ local function HUD(props)
 		ref = hudRef,
 		ZIndex = 0,
 	}, {
-		-- Counter = e(Counter),
 		RightHud = e("Frame", {
+			Visible = props.activePanel == "none",
 			Name = "RightHud",
 			AnchorPoint = Vector2.new(1, 0.5),
 			Position = UDim2.new(1, 0, 0.5, 0),
@@ -173,21 +134,25 @@ local function HUD(props)
 			UIListLayout = e("UIListLayout", {
 				SortOrder = "LayoutOrder",
 				FillDirection = Enum.FillDirection.Vertical,
+				ItemLineAlignment = Enum.ItemLineAlignment.Center,
 				HorizontalAlignment = Enum.HorizontalAlignment.Center,
 				VerticalAlignment = Enum.VerticalAlignment.Center,
-				VerticalFlex = "Fill",
+				VerticalFlex = Enum.UIFlexAlignment.None,
 				HorizontalFlex = "Fill",
 				Padding = UDim.new(0, 10),
 			}),
 			InventoryButton = e("ImageButton", {
 				Name = "InventoryButton",
-				Position = UDim2.new(0.5, 0, 0, 0),
 				AnchorPoint = Vector2.new(0.5, 0),
+				Size = UDim2.new(1, 0, 1, 0),
 				BackgroundTransparency = 0.4,
 				BorderSizePixel = 0,
 				LayoutOrder = 1,
 				[React.Event.Activated] = props.OnInventoryButtonClick,
 			}, {
+				UISizeConstraint = e("UISizeConstraint", {
+					MaxSize = Vector2.new(80, 80),
+				}),
 				rounded = e(require(script.Parent.ui.rounded)),
 				TextLabel = e("TextLabel", {
 					Position = UDim2.new(0.5, 0, 1, -8),
@@ -195,10 +160,12 @@ local function HUD(props)
 					AnchorPoint = Vector2.new(0.5, 1),
 					BackgroundTransparency = 1,
 					Font = "FredokaOne",
-					TextSize = 14,
+					TextSize = 12,
 					Text = "Inventory [E]",
 					Active = false,
 					TextColor3 = Color3.new(1, 1, 1),
+				}, {
+					UITextSizeConstraint = e(textsize, { Min = 12, Max = 12 }),
 				}),
 				AmountLabel = e("TextLabel", {
 					Position = UDim2.new(0, 0, 0, 0),
@@ -212,60 +179,46 @@ local function HUD(props)
 					TextStrokeColor3 = Color3.new(0, 0, 0),
 					TextStrokeTransparency = 0,
 					TextColor3 = Color3.new(1, 1, 1),
+				}, {
+					UITextSizeConstraint = e(textsize, { Min = 12, Max = 12 }),
 				}),
 			}),
-			SettingsButton = e("ImageButton", {
-				Name = "SettingsButton",
-				Position = UDim2.new(0.5, 0, 0, 0),
-				AnchorPoint = Vector2.new(0.5, 0),
-				BackgroundTransparency = 0.4,
+			RebirthButton = props.PlayerData.GameCompleted and React.createElement("ImageButton", {
+				Size = UDim2.new(1, 0, 1, 0),
+				BackgroundColor3 = Color3.fromRGB(200, 50, 50),
 				BorderSizePixel = 0,
-				[React.Event.Activated] = props.OnSettingsButtonClick,
+				[React.Event.Activated] = function()
+					game.ReplicatedStorage.Shared.Events.Wipe:FireServer()
+				end,
 			}, {
-				rounded = e(require(script.Parent.ui.rounded)),
-				TextLabel = e("TextLabel", {
-					Position = UDim2.new(0.5, 0, 1, -8),
-					Size = UDim2.new(1, 0, 01, 0),
-					AnchorPoint = Vector2.new(0.5, 1),
+				UISizeConstraint = e("UISizeConstraint", {
+					MaxSize = Vector2.new(80, 80),
+				}),
+				rounded = React.createElement(require(script.Parent.ui.rounded)),
+				TextLabel = React.createElement("TextLabel", {
+					Size = UDim2.new(1, 0, 1, 0),
 					BackgroundTransparency = 1,
+					Text = "Rebirth (+5%)",
 					Font = "FredokaOne",
 					TextSize = 14,
-					Text = "Settings [C]",
-					Active = false,
 					TextColor3 = Color3.new(1, 1, 1),
+					TextXAlignment = Enum.TextXAlignment.Center,
+				}, {
+					UITextSizeConstraint = e(textsize, { Min = 12, Max = 12 }),
 				}),
-			}),
-			MusicButton = e("ImageButton", {
-				Name = "MusicButton",
-				Position = UDim2.new(0.5, 0, 0, 0),
-				AnchorPoint = Vector2.new(0.5, 0),
-				BackgroundTransparency = 0.4,
-				BorderSizePixel = 0,
-				LayoutOrder = 2,
-				[React.Event.Activated] = props.OnMusicButtonClick,
-			}, {
-				rounded = e(require(script.Parent.ui.rounded)),
-				TextLabel = e("TextLabel", {
-					Position = UDim2.new(0.5, 0, 1, -8),
-					Size = UDim2.new(1, 0, 01, 0),
-					AnchorPoint = Vector2.new(0.5, 1),
-					BackgroundTransparency = 1,
-					Font = "FredokaOne",
-					TextSize = 14,
-					Text = "Music [N]",
-					Active = false,
-					TextColor3 = Color3.new(1, 1, 1),
-				}),
-			}),
+			}) or nil,
 			ShopButton = e("ImageButton", {
 				Name = "ShopButton",
-				Position = UDim2.new(0.5, 0, 0, 0),
+				Size = UDim2.new(1, 0, 1, 0),
 				AnchorPoint = Vector2.new(0.5, 0),
 				BackgroundTransparency = 0.4,
 				BorderSizePixel = 0,
 				LayoutOrder = 3,
 				[React.Event.Activated] = props.OnShopButtonClick,
 			}, {
+				UISizeConstraint = e("UISizeConstraint", {
+					MaxSize = Vector2.new(80, 80),
+				}),
 				rounded = e(require(script.Parent.ui.rounded)),
 				TextLabel = e("TextLabel", {
 					Position = UDim2.new(0.5, 0, 1, -8),
@@ -274,20 +227,15 @@ local function HUD(props)
 					BackgroundTransparency = 1,
 					Font = "FredokaOne",
 					TextSize = 14,
-					Text = "Shop [P]",
+					Text = "Shop [G]",
 					Active = false,
 					TextColor3 = Color3.new(1, 1, 1),
+				}, {
+					UITextSizeConstraint = e(textsize, { Min = 12, Max = 12 }),
 				}),
 			}),
-			-- Beam to Next Button Toggle
-		}),
-		TopRightHud = e(TopRightHud, {
-			money = money,
-			rate = rate,
-			multipliers = multipliers,
 		}),
 		BotLeftHud = e("ImageLabel", {
-			Name = "TopRightHud",
 			Image = "rbxassetid://136242854116857",
 			ScaleType = Enum.ScaleType.Slice,
 			SliceCenter = Rect.new(30, 30, 90, 90),
@@ -316,40 +264,165 @@ local function HUD(props)
 				Active = false,
 				TextColor3 = Color3.new(1, 1, 1),
 			}),
-			StopwatchLabel = e("TextLabel", {
-				Position = UDim2.new(0.5, 0, 1, 0),
-				AutomaticSize = Enum.AutomaticSize.XY,
-				AnchorPoint = Vector2.new(0.5, 1),
-				BackgroundTransparency = 1,
-				Font = "FredokaOne",
-				TextSize = 14,
-				TextStrokeTransparency = 0,
-				Text = stopwatch,
-				Active = false,
-				TextColor3 = Color3.new(1, 1, 1),
-			}),
+			-- StopwatchLabel = e("TextLabel", {
+			-- 	Position = UDim2.new(0.5, 0, 1, 0),
+			-- 	AutomaticSize = Enum.AutomaticSize.XY,
+			-- 	AnchorPoint = Vector2.new(0.5, 1),
+			-- 	BackgroundTransparency = 1,
+			-- 	Font = "FredokaOne",
+			-- 	TextSize = 14,
+			-- 	TextStrokeTransparency = 0,
+			-- 	Text = stopwatch,
+			-- 	Active = false,
+			-- 	TextColor3 = Color3.new(1, 1, 1),
+			-- }),
 		}),
-		-- Special event labels (direct children of HUD)
 
+		-- Special event labels (direct children of HUD)
 		BottomHud = e("Frame", {
 			Name = "BottomHud",
-			Position = UDim2.new(0.5, 0, 1, -100),
+			Position = UDim2.new(0.5, 0, 1, 0),
 			Size = UDim2.new(0, 200, 0, 50),
 			AnchorPoint = Vector2.new(0.5, 1),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 		}, {
-			BeamToggle = props.PlayerData.TutorialFinished and e(BeamToNextButton) or nil,
+			BeamToggle = (props.PlayerData.TutorialFinished and props.SHOWBEAM) and e(BeamToNextButton) or nil,
 		}),
 
 		TopHud = e("Frame", {
 			Name = "TopHud",
-			Position = UDim2.new(0.5, 0, 0, 0),
+			Position = UDim2.new(0.5, 0, 0, -66),
 			Size = UDim2.new(0, 200, 0, 50),
 			AnchorPoint = Vector2.new(0.5, 0),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-		}, eventLabels),
+		}, {
+			ShowProgressButton = not showProgress
+					and props.activePanel == "none"
+					and React.createElement("TextButton", {
+						Size = UDim2.new(0, 40, 0, 40),
+						Position = UDim2.new(0.5, 0, 0, 0),
+						AnchorPoint = Vector2.new(0.5, 0),
+						BackgroundColor3 = Color3.fromRGB(80, 80, 80),
+						BackgroundTransparency = 0.3,
+						BorderSizePixel = 0,
+						Text = "👁️",
+						Font = "FredokaOne",
+						TextSize = 20,
+						[React.Event.Activated] = function()
+							setShowProgress(true)
+						end,
+					}, {
+						rounded = React.createElement(require(script.Parent.ui.rounded)),
+					})
+				or nil,
+			ProgressContainer = showProgress and props.activePanel == "none" and React.createElement("Frame", {
+				Size = UDim2.new(0, 350, 0, 80),
+				Position = UDim2.new(0.5, 0, 0, 70),
+				AnchorPoint = Vector2.new(0.5, 0),
+				BackgroundTransparency = 1,
+			}, {
+				HideButton = React.createElement("TextButton", {
+					Size = UDim2.new(0, 30, 0, 30),
+					Position = UDim2.new(1, 5, 0, 0),
+					AnchorPoint = Vector2.new(0, 0),
+					BackgroundColor3 = Color3.fromRGB(60, 60, 60),
+					BackgroundTransparency = 0.3,
+					BorderSizePixel = 0,
+					Text = "👁️",
+					Font = "FredokaOne",
+					TextSize = 18,
+					TextColor3 = Color3.new(1, 1, 1),
+					[React.Event.Activated] = function()
+						setShowProgress(false)
+					end,
+				}, {
+					rounded = React.createElement(require(script.Parent.ui.rounded)),
+				}),
+				-- Title = React.createElement("TextLabel", {
+				-- 	Size = UDim2.new(1, 0, 0, 20),
+				-- 	Position = UDim2.new(0, 0, 0, 0),
+				-- 	BackgroundTransparency = 1,
+				-- 	Text = "Collection Progress",
+				-- 	Font = "FredokaOne",
+				-- 	TextSize = 16,
+				-- 	TextColor3 = Color3.new(1, 1, 1),
+				-- 	TextXAlignment = Enum.TextXAlignment.Center,
+				-- }),
+
+				ProgressBarBackground = React.createElement("Frame", {
+					Size = UDim2.new(1, 0, 0, 30),
+					Position = UDim2.new(0, 0, 0, 0),
+					BackgroundColor3 = Color3.fromRGB(40, 40, 40),
+					BorderSizePixel = 0,
+				}, {
+					ProgressBar = React.createElement("Frame", {
+						Size = UDim2.new(progress, 0, 1, 0),
+						BackgroundColor3 = Color3.fromRGB(100, 200, 100),
+						BorderSizePixel = 0,
+						ZIndex = 1,
+					}, {
+						rounded = React.createElement(require(script.Parent.ui.rounded)),
+					}),
+					rounded = React.createElement(require(script.Parent.ui.rounded)),
+					ProgressText = React.createElement("TextLabel", {
+						-- AutomaticSize = Enum.AutomaticSize.XY,
+						Size = UDim2.new(1, 0, 1, 0),
+						ZIndex = 2,
+						Position = UDim2.new(0, 0, 0, 0),
+						BackgroundTransparency = 1,
+						TextStrokeTransparency = 0,
+						Text = string.format("(%.1f%%)", progress * 100),
+						Font = "FredokaOne",
+						TextSize = 14,
+						TextColor3 = Color3.new(1, 1, 1),
+						TextXAlignment = Enum.TextXAlignment.Center,
+					}),
+				}),
+			}),
+		}),
+
+		MusicButton = e("ImageButton", {
+			Name = "SettingsButton",
+			Position = UDim2.new(1, 12, 1, 12),
+			AnchorPoint = Vector2.new(1, 1),
+			BackgroundTransparency = 0.4,
+			BorderSizePixel = 0,
+			AutomaticSize = Enum.AutomaticSize.XY,
+			[React.Event.Activated] = props.OnSettingsButtonClick,
+		}, {
+			UIListLayout = e("UIListLayout", {
+				SortOrder = "LayoutOrder",
+				FillDirection = Enum.FillDirection.Horizontal,
+				HorizontalAlignment = Enum.HorizontalAlignment.Center,
+				VerticalAlignment = Enum.VerticalAlignment.Top,
+				HorizontalFlex = "Fill",
+				Padding = UDim.new(0, 10),
+			}),
+			padding = e("UIPadding", {
+				PaddingTop = UDim.new(0, 12),
+				PaddingRight = UDim.new(0, 12),
+				PaddingLeft = UDim.new(0, 12),
+				PaddingBottom = UDim.new(0, 12),
+			}),
+			rounded = e(require(script.Parent.ui.rounded)),
+			TextLabel = e("TextLabel", {
+				Position = UDim2.new(0.5, 0, 1, -8),
+				AutomaticSize = Enum.AutomaticSize.XY,
+				-- Size = UDim2.new(1, 0, 01, 0),
+				AnchorPoint = Vector2.new(0.5, 1),
+				BackgroundTransparency = 1,
+				Font = "FredokaOne",
+				TextSize = 14,
+				Text = "⚙️[C]",
+				Active = false,
+				TextColor3 = Color3.new(1, 1, 1),
+			}),
+		}),
 	})
 end
-return HUD
+
+return React.memo(function(props)
+	return e(HUD, props)
+end)
