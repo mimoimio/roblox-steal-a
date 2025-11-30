@@ -71,14 +71,6 @@ local ICSortedByTiers: { [string]: { ItemConfig } } = {}
 
 local itemConfigById: { [string]: ItemConfig } = {}
 
-for _, child in ipairs(folder:GetChildren()) do
-	if child:IsA("ModuleScript") then
-		local config: ItemConfig = require(child)
-		table.insert(itemConfigs, config)
-		itemConfigById[config.ItemId] = config
-	end
-end
-
 for i, itemconfig in itemConfigs do
 	if not ICSortedByTiers[itemconfig.TierId] then
 		ICSortedByTiers[itemconfig.TierId] = { itemconfig }

@@ -20,7 +20,6 @@ function TierRNGService.initialize()
 		local tiercfg: TierConfig = TiersConfig[tierId]
 		TierRNGService.Probs[tiercfg.TierId] = Probability.new(tiercfg.Weight)
 	end
-	warn("Initialized")
 end
 
 function TierRNGService:roll(): TierConfig

@@ -36,7 +36,6 @@ end
 --remove item from ICLookup
 local function Remove(ItemId: string) end
 
-warn("ItemConfigs", ItemConfigs)
 for i, itemConfig in ItemConfigs do
 	ItemConfigs[itemConfig.ItemId] = itemConfig
 end

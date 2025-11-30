@@ -35,7 +35,8 @@ Changed.Event:Connect(function(data: PlayerData, player: Player)
 
 	local cash = leaderstats:FindFirstChild("Cash")
 	if cash and cash:IsA("StringValue") then
-		cash.Value = Alyanum.new(data and data.Resources and data.Resources.Money or 0):toString()
+		-- cash.Value = Alyanum.new(data and data.Resources and data.Resources.Money or 0):toString()
+		cash.Update:Fire(data and data.Resources and data.Resources.Money or 0)
 	end
 end)
 

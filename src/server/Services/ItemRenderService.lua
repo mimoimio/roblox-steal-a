@@ -59,7 +59,7 @@ local function Item(props: {
 				})
 				tween:Play()
 
-				model.Parent = props.Folder.ItemSlots
+				model.Parent = props.Folder:WaitForChild("ItemSlots")
 				model.Name = props.SlotNum
 				local billboard = game.ReplicatedStorage.Shared.BillboardGui:Clone()
 				billboard.Name = "ItemBillboard_" .. props.ItemId
@@ -90,7 +90,6 @@ local function Item(props: {
 				and game.ReplicatedStorage.Shared.Events:FindFirstChild("PlayerDataUpdated")
 			if pdEvent and props.isMountedRef and props.isMountedRef.current then
 				pdEvent:FireClient(player, profile.Data)
-				warn("FIRED CLIENT")
 			end
 		else
 			model = Dummies:GetModelFromItemId(props.ItemId)
@@ -285,7 +284,6 @@ local function ItemRenderer(props: {
 				and game.ReplicatedStorage.Shared.Events:FindFirstChild("PlayerDataUpdated")
 			if pdEvent then
 				pdEvent:FireClient(props.Player, profile.Data)
-				warn("FIRED CLIENT")
 			end
 		end
 	end, { playerData })
@@ -458,7 +456,6 @@ local function ItemRenderer(props: {
 			PlayerDataService:GetProfile(props.Player).Data.Resources.Money,
 			PlayerDataService:GetProfile(props.Player).Data.Resources.Rate or 0
 		)
-		warn("FIRED CLIENT")
 	end
 	for slot, UID in PlayerDataService:GetProfile(props.Player).Data.ItemSlots do
 		if not ItemSlots[slot] then
@@ -477,7 +474,6 @@ local function ItemRenderer(props: {
 	-- warn(OwnedItemsUpdated)
 	if isMountedRef.current then
 		OwnedItemsUpdated:FireClient(props.Player, profile.Data.OwnedItems)
-		warn("FIRED CLIENT")
 	end
 
 	return e("Folder", {

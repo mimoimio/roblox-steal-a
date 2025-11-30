@@ -132,7 +132,6 @@ end
 
 -- Gamepass Management
 function MonetizationService:CheckGamePassOwnership(player, gamePassId)
-	warn("👀PLAYER", player)
 	local success, owns = pcall(function()
 		return MarketplaceService:UserOwnsGamePassAsync(player.UserId, gamePassId)
 	end)
@@ -141,7 +140,6 @@ function MonetizationService:CheckGamePassOwnership(player, gamePassId)
 end
 
 function MonetizationService:ApplyGamePassMultipliers(player)
-	warn("👀PLAYER", player)
 	for gamePassId, passData in pairs(MonetizationService.GamePasses) do
 		if passData.MultiplierId and MonetizationService:CheckGamePassOwnership(player, gamePassId) then
 			-- Apply permanent multiplier
@@ -158,7 +156,6 @@ function MonetizationService:ApplyGamePassMultipliers(player)
 end
 
 function MonetizationService.GetOwnedGamePasses(player)
-	warn("👀PLAYER", player)
 	local ownedPasses = {}
 
 	for gamePassId, passData in pairs(MonetizationService.GamePasses) do
@@ -171,7 +168,6 @@ function MonetizationService.GetOwnedGamePasses(player)
 end
 
 function MonetizationService:HasGamePassBenefit(player, benefit)
-	warn("👀PLAYER", player)
 	for gamePassId, passData in pairs(MonetizationService.GamePasses) do
 		if passData.Benefits and table.find(passData.Benefits, benefit) then
 			if MonetizationService:CheckGamePassOwnership(player, gamePassId) then
@@ -264,7 +260,6 @@ function MonetizationService.initialize()
 end
 
 function MonetizationService.start()
-	warn("started👀👀👀👀👀👀")
 	-- Apply gamepass multipliers to players when they join
 	Players.PlayerAdded:Connect(function(player)
 		task.wait(2) -- Wait for profile to load
@@ -278,7 +273,6 @@ function MonetizationService.start()
 			MonetizationService:ApplyGamePassMultipliers(player)
 		end)
 	end
-	warn("started👀👀👀👀👀👀")
 end
 
 return MonetizationService

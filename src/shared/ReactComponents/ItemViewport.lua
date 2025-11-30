@@ -20,10 +20,9 @@ local function ItemViewport(props: ItemViewportProps)
 		end
 
 		-- Create camera
-		local camera = Instance.new("Camera")
+		local camera = viewport:FindFirstChild("Camera") or Instance.new("Camera")
 		camera.Parent = viewport
 		viewport.CurrentCamera = camera
-		cameraRef.current = camera
 
 		-- Try to find and clone the model
 		local modelsFolder = game.ReplicatedStorage.Shared.Models
@@ -32,7 +31,6 @@ local function ItemViewport(props: ItemViewportProps)
 		if modelTemplate then
 			local model = modelTemplate:Clone()
 			model.Parent = viewport
-			modelRef.current = model
 			camera.CameraType = "Scriptable"
 
 			-- Calculate the model's bounding box
@@ -46,11 +44,10 @@ local function ItemViewport(props: ItemViewportProps)
 			camera.FieldOfView = 70
 			camera:ZoomToExtents(model:GetBoundingBox())
 
-			-- Adjust field of view to fit the model
+		-- Adjust field of view to fit the model
 		else
-			warn("[ItemViewport] Model not found for ItemId:", props.ItemId)
+			warn("[ItemViewport] Model not found for props.ItemId:", props.ItemId)
 		end
-
 		-- Cleanup function
 		return function()
 			if modelRef.current then
@@ -71,6 +68,9 @@ local function ItemViewport(props: ItemViewportProps)
 			["rounded"] = e(require(script.Parent.ui.rounded)),
 		}
 	end
+
+	--placeholder for unlocked mechanic
+	local unlocked = true
 	return e("ViewportFrame", {
 		Size = props.Size or UDim2.new(0.5, 0, 1, 0), --
 		SizeConstraint = Enum.SizeConstraint.RelativeXY,
@@ -79,6 +79,8 @@ local function ItemViewport(props: ItemViewportProps)
 		Position = UDim2.new(0, 0, 0, 0),
 		ref = viewportRef,
 		ZIndex = props.ZIndex or 3,
+		LightColor = unlocked and Color3.new(1, 1, 1) or Color3.new(0, 0, 0),
+		Ambient = unlocked and Color3.new(1, 1, 1) or Color3.new(0, 0, 0),
 	}, {
 		props.children,
 	})

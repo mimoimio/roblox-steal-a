@@ -23,7 +23,7 @@ local FIRSTUNLOCKEDITEMID = require(game.ServerScriptService.GeneratedItemConfig
 function DefaultPlayerData.Get()
 	local DEFAULT_RESOURCES = {
 		Money = 220,
-		Rate = 0,
+		Rate = 1,
 		SoulCrystal = 0,
 	}
 	local DEFAULT_SETTINGS = {
@@ -35,26 +35,7 @@ function DefaultPlayerData.Get()
 		LVL = 1,
 		Life = 1,
 	}
-	local DEFAULT_ITEMS: { Item } = {
-		-- {
-		-- 	UID = generateUID(),
-		-- 	VariationId = "none",
-		-- 	ItemId = "daybloom",
-		-- 	DisplayName = "Daybloom",
-		-- 	Price = 25,
-		-- 	TierId = "common",
-		-- 	Rate = 1,
-		-- },
-		-- {
-		-- 	UID = generateUID(),
-		-- 	VariationId = "none",
-		-- 	ItemId = "daybloom",
-		-- 	DisplayName = "Daybloom",
-		-- 	Price = 25,
-		-- 	TierId = "common",
-		-- 	Rate = 1,
-		-- },
-	}
+	local DEFAULT_ITEMS: { Item } = {}
 	local DEFAULT_ITEMSLOTS: ItemSlots = {
 		Slot1 = "none",
 		Slot2 = "none",

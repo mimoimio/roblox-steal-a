@@ -10,7 +10,7 @@ local CLOSED_POS = UDim2.new(0.5, 0, -0.5, 0)
 local Events = game.ReplicatedStorage.Shared.Events
 local GetTotalItemCount: RemoteFunction = Events:WaitForChild("GetTotalItemCount")
 local GetOwnedItems: RemoteFunction = Events:WaitForChild("GetOwnedItems")
-local OwnedItemsUpdated: RemoteEvent = Events:WaitForChild("OwnedItemsUpdated")
+local OwnedItemsUpdated: RemoteEvent = Events:WaitForChild("OwnedItemsUpdated",5)
 
 local function Settings(props: {
 	SettingsOpen: boolean,

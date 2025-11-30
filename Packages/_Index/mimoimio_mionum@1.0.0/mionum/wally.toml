@@ -1,0 +1,17 @@
+[package]
+name = "mimoimio/mionum" # Change to your Wally username
+version = "1.0.1" # Start with your own version
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+description = "Mio's fork of Alyanum"
+license = "MIT"
+include = [
+    "Mionum",               # Change from AlyaNum to Mionum
+    "Mionum/**",
+    "default.project.json",
+    "LICENSE",
+    "wally.toml",
+]
+exclude = ["*"]
+
+[dependencies]

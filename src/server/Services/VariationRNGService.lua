@@ -14,7 +14,6 @@ local rollCount = 0
 
 function toggleNightEvent()
 	while Clock.IsMorning == nil do
-		warn("Waiting for clock to initialize", Clock)
 		task.wait()
 	end
 	if not SpecialEventsService.isInitialized then
@@ -23,11 +22,9 @@ function toggleNightEvent()
 	if Clock.IsMorning == true then
 		VariationRNGService.Probs["starlight"] = nil
 		SpecialEventsService:RemoveEvent("starlight")
-		warn("Starlight Events OFF!")
 	else
 		VariationRNGService.Probs["starlight"] = Probability.new(20, 0.5, 5)
 		SpecialEventsService:AddEvent("starlight")
-		warn("Starlight Events ON!")
 	end
 end
 

@@ -1270,15 +1270,15 @@ local function recalculatePricesFromUI()
 
 		-- The new price is the baseCost multiplied by the multiplier,
 		-- raised to the power of its position in the list.
-		local itemtypecost = itemconfig.ItemSlot and 4 or 1
+		local itemtypecost = itemconfig.ItemSlot and 2 or 1
 		itemconfig.Price = math.floor(
-			(baseCost + ((itemtypecost > 1) and itemtypecost or 0))
+			(baseCost + ((itemtypecost > 1) and itemtypecost or 0)) --
 					* itemtypecost
-					* (multiplier ^ math.floor((i - 1) / 5))
+					* (multiplier ^ math.floor((i - 1) / 10))
 				+ 1 * (i - 1)
 		)
 		-- itemconfig.Price = math.floor(baseCost * itemtypecost + 5 * i * multiplier ^ (math.floor(i / 10)))
-		baseCost += itemconfig.ItemSlot and itemtypecost * 5 or 0
+		baseCost += (itemtypecost > 1) and i * 5 or 0
 	end
 
 	onGenerateModule()
@@ -1416,9 +1416,18 @@ mainWidget.Changed:Connect(function(property)
 end)
 
 plugin.Unloading:Connect(function()
+	if game.GameId ~= 8782368102 then
+		warn("This plugin is specific to one game currently")
+		return
+	end
+
 	destroyVisuals()
 	local itemfolderRefInstance = workspace.itemfolderRefInstance :: ObjectValue
 	local OriginalBase = workspace.OriginalBase :: ObjectValue
-	itemfolderRefInstance.Value.Parent = game.ServerStorage
-	OriginalBase.Value.Parent = game.ServerStorage
+	if itemfolderRefInstance.Value then
+		itemfolderRefInstance.Value.Parent = game.ServerStorage
+	end
+	if OriginalBase.Value then
+		OriginalBase.Value.Parent = game.ServerStorage
+	end
 end)

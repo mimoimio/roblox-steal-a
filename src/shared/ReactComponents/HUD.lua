@@ -68,21 +68,24 @@ local function HUD(props)
 	end, {})
 
 	local ownedItems, setOwnedItems = React.useState({})
+	local GeneratedItemConfigs, setGeneratedItemConfigs = React.useState({})
 	local totalItemCount, setTotalItemCount = React.useState(0)
 
 	React.useEffect(function()
 		local Events = game.ReplicatedStorage.Shared.Events
 
-		-- Get total item count
-		local GetTotalItemCount: RemoteFunction = Events:WaitForChild("GetTotalItemCount")
-		local count = GetTotalItemCount:InvokeServer()
-		setTotalItemCount(count)
-
 		-- Get owned items
-		local GetOwnedItems: RemoteFunction = Events:WaitForChild("GetOwnedItems")
+		local GetOwnedItems: RemoteFunction = Events:WaitForChild("GetOwnedItems") :: { [string]: boolean }
 		local owned = GetOwnedItems:InvokeServer()
 		if owned and type(owned) == "table" then
 			setOwnedItems(owned)
+		end
+		-- Get itemconfigs
+		local GetGeneratedItemConfigs: RemoteFunction = Events:WaitForChild("GetGeneratedItemConfigs")
+		local xGeneratedItemConfigs = GetGeneratedItemConfigs:InvokeServer()
+		if xGeneratedItemConfigs and type(xGeneratedItemConfigs) == "table" then
+			setGeneratedItemConfigs(xGeneratedItemConfigs)
+			setTotalItemCount(#xGeneratedItemConfigs)
 		end
 
 		-- Listen for updates to owned items
@@ -102,7 +105,10 @@ local function HUD(props)
 
 	local ownedCount = 0
 	if ownedItems then
-		for _ in ownedItems do
+		for i, itemconfig in GeneratedItemConfigs do
+			if not ownedItems[itemconfig.ItemId] then
+				continue
+			end
 			ownedCount = ownedCount + 1
 		end
 	end
@@ -119,122 +125,122 @@ local function HUD(props)
 		ref = hudRef,
 		ZIndex = 0,
 	}, {
-		RightHud = e("Frame", {
-			Visible = props.activePanel == "none",
-			Name = "RightHud",
-			AnchorPoint = Vector2.new(1, 0.5),
-			Position = UDim2.new(1, 0, 0.5, 0),
-			Size = UDim2.new(0.25, 0, 0.75, 0),
-			BackgroundTransparency = 1,
-			BorderSizePixel = 0,
-		}, {
-			UISizeConstraint = e("UISizeConstraint", {
-				MaxSize = Vector2.new(100, 300),
-			}),
-			UIListLayout = e("UIListLayout", {
-				SortOrder = "LayoutOrder",
-				FillDirection = Enum.FillDirection.Vertical,
-				ItemLineAlignment = Enum.ItemLineAlignment.Center,
-				HorizontalAlignment = Enum.HorizontalAlignment.Center,
-				VerticalAlignment = Enum.VerticalAlignment.Center,
-				VerticalFlex = Enum.UIFlexAlignment.None,
-				HorizontalFlex = "Fill",
-				Padding = UDim.new(0, 10),
-			}),
-			InventoryButton = e("ImageButton", {
-				Name = "InventoryButton",
-				AnchorPoint = Vector2.new(0.5, 0),
-				Size = UDim2.new(1, 0, 1, 0),
-				BackgroundTransparency = 0.4,
-				BorderSizePixel = 0,
-				LayoutOrder = 1,
-				[React.Event.Activated] = props.OnInventoryButtonClick,
-			}, {
-				UISizeConstraint = e("UISizeConstraint", {
-					MaxSize = Vector2.new(80, 80),
-				}),
-				rounded = e(require(script.Parent.ui.rounded)),
-				TextLabel = e("TextLabel", {
-					Position = UDim2.new(0.5, 0, 1, -8),
-					Size = UDim2.new(1, 0, 1, 0),
-					AnchorPoint = Vector2.new(0.5, 1),
-					BackgroundTransparency = 1,
-					Font = "FredokaOne",
-					TextSize = 12,
-					Text = "Inventory [E]",
-					Active = false,
-					TextColor3 = Color3.new(1, 1, 1),
-				}, {
-					UITextSizeConstraint = e(textsize, { Min = 12, Max = 12 }),
-				}),
-				AmountLabel = e("TextLabel", {
-					Position = UDim2.new(0, 0, 0, 0),
-					Size = UDim2.new(0, 50, 0, 50),
-					AnchorPoint = Vector2.new(0.5, 0.5),
-					BackgroundTransparency = 1,
-					Font = "FredokaOne",
-					TextSize = 14,
-					Text = (props.ItemAmt or 0) .. "/24",
-					Active = false,
-					TextStrokeColor3 = Color3.new(0, 0, 0),
-					TextStrokeTransparency = 0,
-					TextColor3 = Color3.new(1, 1, 1),
-				}, {
-					UITextSizeConstraint = e(textsize, { Min = 12, Max = 12 }),
-				}),
-			}),
-			RebirthButton = props.PlayerData.GameCompleted and React.createElement("ImageButton", {
-				Size = UDim2.new(1, 0, 1, 0),
-				BackgroundColor3 = Color3.fromRGB(200, 50, 50),
-				BorderSizePixel = 0,
-				[React.Event.Activated] = function()
-					game.ReplicatedStorage.Shared.Events.Wipe:FireServer()
-				end,
-			}, {
-				UISizeConstraint = e("UISizeConstraint", {
-					MaxSize = Vector2.new(80, 80),
-				}),
-				rounded = React.createElement(require(script.Parent.ui.rounded)),
-				TextLabel = React.createElement("TextLabel", {
-					Size = UDim2.new(1, 0, 1, 0),
-					BackgroundTransparency = 1,
-					Text = "Rebirth (+5%)",
-					Font = "FredokaOne",
-					TextSize = 14,
-					TextColor3 = Color3.new(1, 1, 1),
-					TextXAlignment = Enum.TextXAlignment.Center,
-				}, {
-					UITextSizeConstraint = e(textsize, { Min = 12, Max = 12 }),
-				}),
-			}) or nil,
-			ShopButton = e("ImageButton", {
-				Name = "ShopButton",
-				Size = UDim2.new(1, 0, 1, 0),
-				AnchorPoint = Vector2.new(0.5, 0),
-				BackgroundTransparency = 0.4,
-				BorderSizePixel = 0,
-				LayoutOrder = 3,
-				[React.Event.Activated] = props.OnShopButtonClick,
-			}, {
-				UISizeConstraint = e("UISizeConstraint", {
-					MaxSize = Vector2.new(80, 80),
-				}),
-				rounded = e(require(script.Parent.ui.rounded)),
-				TextLabel = e("TextLabel", {
-					Position = UDim2.new(0.5, 0, 1, -8),
-					Size = UDim2.new(1, 0, 01, 0),
-					AnchorPoint = Vector2.new(0.5, 1),
-					BackgroundTransparency = 1,
-					Font = "FredokaOne",
-					TextSize = 14,
-					Text = "Shop [G]",
-					Active = false,
-					TextColor3 = Color3.new(1, 1, 1),
-				}, {
-					UITextSizeConstraint = e(textsize, { Min = 12, Max = 12 }),
-				}),
-			}),
-		}),
+		-- RightHud = e("Frame", {
+		-- 	Visible = props.activePanel == "none",
+		-- 	Name = "RightHud",
+		-- 	AnchorPoint = Vector2.new(1, 0.5),
+		-- 	Position = UDim2.new(1, 0, 0.5, 0),
+		-- 	Size = UDim2.new(0.25, 0, 0.75, 0),
+		-- 	BackgroundTransparency = 1,
+		-- 	BorderSizePixel = 0,
+		-- }, {
+		-- 	UISizeConstraint = e("UISizeConstraint", {
+		-- 		MaxSize = Vector2.new(100, 300),
+		-- 	}),
+		-- 	UIListLayout = e("UIListLayout", {
+		-- 		SortOrder = "LayoutOrder",
+		-- 		FillDirection = Enum.FillDirection.Vertical,
+		-- 		ItemLineAlignment = Enum.ItemLineAlignment.Center,
+		-- 		HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		-- 		VerticalAlignment = Enum.VerticalAlignment.Center,
+		-- 		VerticalFlex = Enum.UIFlexAlignment.None,
+		-- 		HorizontalFlex = "Fill",
+		-- 		Padding = UDim.new(0, 10),
+		-- 	}),
+		-- 	InventoryButton = e("ImageButton", {
+		-- 		Name = "InventoryButton",
+		-- 		AnchorPoint = Vector2.new(0.5, 0),
+		-- 		Size = UDim2.new(1, 0, 1, 0),
+		-- 		BackgroundTransparency = 0.4,
+		-- 		BorderSizePixel = 0,
+		-- 		LayoutOrder = 1,
+		-- 		[React.Event.Activated] = props.OnInventoryButtonClick,
+		-- 	}, {
+		-- 		UISizeConstraint = e("UISizeConstraint", {
+		-- 			MaxSize = Vector2.new(80, 80),
+		-- 		}),
+		-- 		rounded = e(require(script.Parent.ui.rounded)),
+		-- 		TextLabel = e("TextLabel", {
+		-- 			Position = UDim2.new(0.5, 0, 1, -8),
+		-- 			Size = UDim2.new(1, 0, 1, 0),
+		-- 			AnchorPoint = Vector2.new(0.5, 1),
+		-- 			BackgroundTransparency = 1,
+		-- 			Font = "FredokaOne",
+		-- 			TextSize = 12,
+		-- 			Text = "Inventory [E]",
+		-- 			Active = false,
+		-- 			TextColor3 = Color3.new(1, 1, 1),
+		-- 		}, {
+		-- 			UITextSizeConstraint = e(textsize, { Min = 12, Max = 12 }),
+		-- 		}),
+		-- 		AmountLabel = e("TextLabel", {
+		-- 			Position = UDim2.new(0, 0, 0, 0),
+		-- 			Size = UDim2.new(0, 50, 0, 50),
+		-- 			AnchorPoint = Vector2.new(0.5, 0.5),
+		-- 			BackgroundTransparency = 1,
+		-- 			Font = "FredokaOne",
+		-- 			TextSize = 14,
+		-- 			Text = (props.ItemAmt or 0) .. "/24",
+		-- 			Active = false,
+		-- 			TextStrokeColor3 = Color3.new(0, 0, 0),
+		-- 			TextStrokeTransparency = 0,
+		-- 			TextColor3 = Color3.new(1, 1, 1),
+		-- 		}, {
+		-- 			UITextSizeConstraint = e(textsize, { Min = 12, Max = 12 }),
+		-- 		}),
+		-- 	}),
+		-- 	RebirthButton = props.PlayerData.GameCompleted and React.createElement("ImageButton", {
+		-- 		Size = UDim2.new(1, 0, 1, 0),
+		-- 		BackgroundColor3 = Color3.fromRGB(200, 50, 50),
+		-- 		BorderSizePixel = 0,
+		-- 		[React.Event.Activated] = function()
+		-- 			game.ReplicatedStorage.Shared.Events.Wipe:FireServer()
+		-- 		end,
+		-- 	}, {
+		-- 		UISizeConstraint = e("UISizeConstraint", {
+		-- 			MaxSize = Vector2.new(80, 80),
+		-- 		}),
+		-- 		rounded = React.createElement(require(script.Parent.ui.rounded)),
+		-- 		TextLabel = React.createElement("TextLabel", {
+		-- 			Size = UDim2.new(1, 0, 1, 0),
+		-- 			BackgroundTransparency = 1,
+		-- 			Text = "Rebirth (+5%)",
+		-- 			Font = "FredokaOne",
+		-- 			TextSize = 14,
+		-- 			TextColor3 = Color3.new(1, 1, 1),
+		-- 			TextXAlignment = Enum.TextXAlignment.Center,
+		-- 		}, {
+		-- 			UITextSizeConstraint = e(textsize, { Min = 12, Max = 12 }),
+		-- 		}),
+		-- 	}) or nil,
+		-- 	ShopButton = e("ImageButton", {
+		-- 		Name = "ShopButton",
+		-- 		Size = UDim2.new(1, 0, 1, 0),
+		-- 		AnchorPoint = Vector2.new(0.5, 0),
+		-- 		BackgroundTransparency = 0.4,
+		-- 		BorderSizePixel = 0,
+		-- 		LayoutOrder = 3,
+		-- 		[React.Event.Activated] = props.OnShopButtonClick,
+		-- 	}, {
+		-- 		UISizeConstraint = e("UISizeConstraint", {
+		-- 			MaxSize = Vector2.new(80, 80),
+		-- 		}),
+		-- 		rounded = e(require(script.Parent.ui.rounded)),
+		-- 		TextLabel = e("TextLabel", {
+		-- 			Position = UDim2.new(0.5, 0, 1, -8),
+		-- 			Size = UDim2.new(1, 0, 01, 0),
+		-- 			AnchorPoint = Vector2.new(0.5, 1),
+		-- 			BackgroundTransparency = 1,
+		-- 			Font = "FredokaOne",
+		-- 			TextSize = 14,
+		-- 			Text = "Shop [G]",
+		-- 			Active = false,
+		-- 			TextColor3 = Color3.new(1, 1, 1),
+		-- 		}, {
+		-- 			UITextSizeConstraint = e(textsize, { Min = 12, Max = 12 }),
+		-- 		}),
+		-- 	}),
+		-- }),
 		BotLeftHud = e("ImageLabel", {
 			Image = "rbxassetid://136242854116857",
 			ScaleType = Enum.ScaleType.Slice,
@@ -287,7 +293,9 @@ local function HUD(props)
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 		}, {
-			BeamToggle = (props.PlayerData.TutorialFinished and props.SHOWBEAM) and e(BeamToNextButton) or nil,
+			BeamToggle = (props.PlayerData.TutorialFinished and props.SHOWBEAM)
+					and e(BeamToNextButton, { props.activePanel })
+				or nil,
 		}),
 
 		TopHud = e("Frame", {

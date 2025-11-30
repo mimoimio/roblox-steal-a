@@ -99,8 +99,6 @@ end
 
 function Item:Sell(player)
 	local pd: PlayerData = PlayerDataService:GetProfile(player).Data
-	local TycoonService = require(game.ServerScriptService.Server.Services.TycoonService)
-	local playersTycoon = TycoonService.GetTycoonFromPlayer:Invoke(player)
 	for i, item: Item in pd.Items do
 		if item.UID == self.UID then
 			local itemConfig: ItemConfig = ItemsConfig[item.ItemId]
@@ -114,6 +112,9 @@ function Item:Sell(player)
 			pd.Resources.Money += math.floor(self.Price / 2)
 			Item.FireSoldEvent(item, player)
 
+			local leaderstats = player:FindFirstChild("leaderstats")
+			local Cash = leaderstats.Cash
+			Cash.Update:Fire(pd.Resources.Money)
 			return
 		end
 	end

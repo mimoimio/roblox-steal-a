@@ -48,7 +48,7 @@ function EffectHelpers.withContext(item: any, player: Player, callback: (context
 		warn("⚠️ EffectHelpers: Failed to create context")
 		return
 	end
-
+	warn("item", item, callback)
 	callback(ctx)
 	ctx:notifyClient()
 end
@@ -120,8 +120,8 @@ function EffectHelpers.increaseSelfRate(item: any, player: Player, amount: numbe
 			local PlayerData = require(game.ServerScriptService.Server.Classes.PlayerData)
 			ctx.playerData = PlayerData.Collections[player]
 		end
-		
-			-- this somehow error idk sometimes
+
+		-- this somehow error idk sometimes
 		local selfItem = ctx.playerData:GetItemFromUID(item.UID)
 		if selfItem then
 			ctx:updateItemRate(selfItem, amount)

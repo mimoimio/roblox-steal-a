@@ -40,7 +40,13 @@ local function UnlocksList(props: UnlocksListProps)
 
 		children["Unlock_" .. index] = e(UnlockedItem, {
 			unlockId = unlockId,
-			displayName = string.format("%s (%d)", displayName, unlockCount),
+			ItemSlot = unlockConfig and unlockConfig.ItemSlot,
+			displayName = string.format(
+				"%s (%d)%s",
+				displayName,
+				unlockCount,
+				unlockConfig and unlockConfig.ItemSlot and " [ITEM SLOT]" or ""
+			),
 			index = index,
 			isSelected = isSelected,
 			onSelect = function()

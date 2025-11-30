@@ -679,3 +679,7 @@ local function Shop(props: {
 end
 
 return Shop
+
+--[[ TODO:
+CREATE UNLOCKS AND NOTIFICATION FOR UNLOCKED like a "!"
+]]

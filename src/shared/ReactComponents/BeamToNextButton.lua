@@ -229,7 +229,6 @@ local function BeamToNextButton(props)
 		AnchorPoint = Vector2.new(0.5, 0),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
-		-- AutomaticSize = Enum.AutomaticSize.XY,
 		Size = UDim2.new(1, 0, 1, 0),
 		Image = "rbxassetid://136242854116857",
 		ScaleType = Enum.ScaleType.Slice,
@@ -237,6 +236,7 @@ local function BeamToNextButton(props)
 		ImageTransparency = 0.4,
 		ImageColor3 = beamEnabled and Color3.new(0.5, 1, 0.5) or Color3.new(1, 0.5, 0.5),
 		LayoutOrder = 3,
+		Visible = props.activePanel == "none",
 		[React.Event.Activated] = function()
 			setBeamEnabled(not beamEnabled)
 		end,

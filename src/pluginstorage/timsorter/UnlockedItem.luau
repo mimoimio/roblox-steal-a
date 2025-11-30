@@ -23,7 +23,9 @@ type UnlockedItemProps = {
 local function UnlockedItem(props: UnlockedItemProps)
 	return e("Frame", {
 		Size = UDim2.new(1, 0, 0, 35),
-		BackgroundColor3 = props.isSelected and Color3.fromRGB(70, 70, 120) or Color3.fromRGB(50, 50, 50),
+		BackgroundColor3 = props.isSelected
+				and (props.ItemSlot and Color3.fromRGB(0, 140, 255) or Color3.fromRGB(70, 70, 120))
+			or (props.ItemSlot and Color3.fromRGB(70, 70, 255) or Color3.fromRGB(50, 50, 50)),
 		BorderSizePixel = 0,
 		LayoutOrder = props.index,
 	}, {

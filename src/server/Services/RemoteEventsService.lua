@@ -18,6 +18,8 @@ GetPlayerData.Name = "GetPlayerData"
 
 local GetTotalItemCount = Instance.new("RemoteFunction", game.ReplicatedStorage.Shared.Events)
 GetTotalItemCount.Name = "GetTotalItemCount"
+local GetGeneratedItemConfigs = Instance.new("RemoteFunction", game.ReplicatedStorage.Shared.Events)
+GetGeneratedItemConfigs.Name = "GetGeneratedItemConfigs"
 
 local ResourcesUpdated = Instance.new("RemoteEvent", game.ReplicatedStorage.Shared.Events)
 ResourcesUpdated.Name = "ResourcesUpdated"
@@ -66,19 +68,10 @@ function RemoteEventsService.initialize()
 		return
 	end
 	local folder = game.ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Configs"):WaitForChild("ItemsConfig")
-	local itemConfigs: {} = {}
-	local itemConfigById: {} = {}
-
-	for _, child in ipairs(folder:GetChildren()) do
-		if child:IsA("ModuleScript") then
-			local config = require(child)
-			table.insert(itemConfigs, config)
-			itemConfigById[config.ItemId] = config
-		end
-	end
+	local itemConfigs: {} = require(game.ReplicatedStorage.Shared.Configs.ItemsConfig)
 
 	BuyItem.OnServerEvent:Connect(function(player: Player, ItemId: string)
-		local itemconfig = itemConfigById[ItemId]
+		local itemconfig = itemConfigs[ItemId]
 		if not itemconfig then
 			warn("no item by", ItemId)
 			return
@@ -99,6 +92,13 @@ function RemoteEventsService.initialize()
 		end
 
 		pd.Resources.Money = money
+
+		local Alyanum = require(game.ReplicatedStorage.Packages.Alyanum)
+		local leaderstats = player:FindFirstChild("leaderstats")
+		local Cash = leaderstats.Cash
+		Cash.Value = Alyanum.new(pd.Resources.Money):toString()
+
+		-- Fire Client
 		local MoneyDisplayUpdate: UnreliableRemoteEvent =
 			game.ReplicatedStorage.Shared.Events:WaitForChild("MoneyDisplayUpdate")
 		MoneyDisplayUpdate:FireClient(player, pd.Resources.Money, pd.Resources.Rate)
@@ -122,6 +122,9 @@ function RemoteEventsService.initialize()
 	GetTotalItemCount.OnServerInvoke = function(player)
 		local ItemConfigService = require(game.ServerScriptService.Server.Services.ItemConfigService)
 		return ItemConfigService.getTotalItemCount()
+	end
+	GetGeneratedItemConfigs.OnServerInvoke = function(player)
+		return require(game.ServerScriptService.GeneratedItemConfigs)
 	end
 
 	Wipe.OnServerEvent:Connect(function(player)

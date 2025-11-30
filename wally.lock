@@ -93,6 +93,11 @@ version = "1.2.7"
 dependencies = [["collections", "jsdotlua/collections@1.2.7"]]
 
 [[package]]
+name = "mimoimio/mionum"
+version = "1.0.0"
+dependencies = []
+
+[[package]]
 name = "yourname/learn-roact"
 version = "0.1.0"
-dependencies = [["Alyanum", "evilbocchi/alyanum@1.1.9"], ["React", "jsdotlua/react@17.2.1"], ["ReactRoblox", "jsdotlua/react-roblox@17.2.1"]]
+dependencies = [["Alyanum", "evilbocchi/alyanum@1.1.9"], ["Mionum", "mimoimio/mionum@1.0.0"], ["React", "jsdotlua/react@17.2.1"], ["ReactRoblox", "jsdotlua/react-roblox@17.2.1"]]

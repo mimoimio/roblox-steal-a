@@ -82,7 +82,7 @@ function self.TimeIncrement(dt)
 				sound:Destroy()
 			end)
 		end
-	elseif ((game.Lighting.ClockTime >= 18) or (game.Lighting.ClockTime < morningTime)) and self.IsMorning then
+	elseif ((game.Lighting.ClockTime >= 19.5) or (game.Lighting.ClockTime < morningTime)) and self.IsMorning then
 		warn("Change to night")
 		self.IsMorning = false
 		lightsOn()

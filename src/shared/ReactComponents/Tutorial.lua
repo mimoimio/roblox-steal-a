@@ -258,7 +258,7 @@ local function Tutorial(props: TutoProps)
 		end
 
 		-- Step 4: Wait for shop to close
-		if step == 4 and props.activePanel == "none" then
+		if step == 4 and props.activePanel ~= "shop" then
 			setStep(5)
 		end
 
@@ -298,6 +298,7 @@ local function Tutorial(props: TutoProps)
 		Size = UDim2.new(0.9, 0, 0, 120),
 		BorderSizePixel = 0,
 		Active = false,
+		ZIndex = 100,
 	}, {
 		rounded = React.createElement(require(script.Parent.ui.rounded)),
 		padding = React.createElement("UIPadding", {

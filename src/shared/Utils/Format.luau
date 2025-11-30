@@ -7,10 +7,28 @@ local tierConfigs = require(game.ReplicatedStorage.Shared.Configs.TiersConfig)
 local Alyanum = require(game.ReplicatedStorage.Packages.Alyanum)
 
 local EvalColorSequence = require(script.Parent.EvalColorSequence)
+-- local bigNumColors = {
+-- 	Color3.new(1, 1, 1),
+-- 	Color3.new(1, 0.5, 0.6),
+-- 	Color3.new(0.8, 0.7, 0.2),
+-- 	Color3.new(0.2, 0.3, 1),
+-- }
+
 local bigNumColors = {
-	Color3.new(1, 0.5, 0.6),
-	Color3.new(0.8, 0.7, 0.2),
-	Color3.new(0.2, 0.3, 1),
+	Color3.new(1, 1, 1),
+	Color3.new(0.5, 0.5, 1),
+	Color3.new(0.5, 1, 0.5),
+	Color3.new(1, 0.5, 0.5),
+	Color3.new(1, 1, 0),
+	Color3.new(0, 1, 1),
+	Color3.new(1, 0, 1),
+	Color3.new(0.5, 0.5, 0.5),
+	Color3.new(1, 0, 0),
+	Color3.new(0, 1, 0),
+	Color3.new(0, 0, 1),
+	Color3.new(1, 1, 0.5),
+	Color3.new(0.5, 1, 1),
+	Color3.new(1, 0.5, 1),
 }
 local sequences: { ColorSequenceKeypoint } = {}
 for i, color in bigNumColors do
@@ -56,7 +74,7 @@ function FormatItemLabelText(item: Item, isMultiplied: boolean?): string
 end
 
 function rateColor(rate: number): Color3
-	local spectrum = math.clamp(rate / 9e6, 0, 1)
+	local spectrum = math.clamp(math.log10(rate) / math.log10(9e9), 0, 1)
 	return EvalColorSequence(bignumColorSequence, spectrum)
 end
 -- local Alyanum = require(game.ReplicatedStorage.Packages.Alyanum)

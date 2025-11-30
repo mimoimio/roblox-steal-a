@@ -19,6 +19,7 @@ ScreenGui2.Name = "ReactRoot2"
 ScreenGui2.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 local root2 = ReactRoblox.createRoot(ScreenGui2)
 
+local Events = game.ReplicatedStorage.Shared:WaitForChild("Events")
 function restart() -- every 60 seconds
 	local ScreenGui = Instance.new("ScreenGui", game.Players.LocalPlayer.PlayerGui)
 	ScreenGui.ResetOnSpawn = false

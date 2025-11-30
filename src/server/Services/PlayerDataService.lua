@@ -8,7 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ProfileStoreModule = require(game.ServerScriptService.Server.Services.ProfileStore) -- Adjust path if needed
 local sharedtypes = require(ReplicatedStorage.Shared.types)
 local DefaultPlayerDataConfig = require(ReplicatedStorage.Shared.Configs.DefaultPlayerData)
-local Alyanum = require(ReplicatedStorage.Packages.Alyanum)
+local Mionum = require(ReplicatedStorage.Packages.Mionum)
 
 -- Define types locally
 type Item = sharedtypes.Item
@@ -167,8 +167,15 @@ local function OnPlayerAdded(player: Player)
 
 		local cash = Instance.new("StringValue")
 		cash.Name = "Cash"
-		cash.Value = Alyanum.new(profile.Data.Resources and profile.Data.Resources.Money or 0):toString()
+		cash.Value = Mionum.new(profile.Data.Resources and profile.Data.Resources.Money or 0):toString()
 		cash.Parent = leaderstats
+
+		local Update = Instance.new("BindableEvent")
+		Update.Name = "Update"
+		Update.Parent = cash
+		Update.Event:Connect(function(money: number)
+			cash.Value = Mionum.new(money):toString()
+		end)
 
 		-- Set up a function to run when the session ends
 		-- This replaces ListenToRelease from ProfileService
@@ -268,7 +275,7 @@ function PlayerDataService:Wipe(player: Player)
 		UnlockedItems = table.clone(DefaultPlayerDataConfig.UnlockedItems),
 		Multipliers = prevdata.Multipliers, -- retain bought items, should not just be multipliers actually
 		BroomTutorialFinished = prevdata.BroomTutorialFinished,
-		TutorialFinished = prevdata.BroomTutorialFinished,
+		TutorialFinished = prevdata.TutorialFinished,
 	}
 
 	for name, data in PlayerDataService:GetProfile(player).Data do
@@ -279,7 +286,8 @@ function PlayerDataService:Wipe(player: Player)
 	-- Add/update RebirthBonus multiplier
 	MultiplierService.AddMultiplier(player, "RebirthBonus", rebirthBonusValue, -1, "Rebirth Bonus")
 	-- Add sourlcrystals
-	PlayerDataService:GetProfile(player).Data.Resources.SoulCrystal = soulcrystal
+	local pd = PlayerDataService:GetProfile(player).Data
+	pd.Resources.SoulCrystal = soulcrystal
 
 	TycoonService.RestartPlayer(player)
 	ItemRenderService.RestartPlayer(player)
@@ -287,6 +295,10 @@ function PlayerDataService:Wipe(player: Player)
 
 	Item.new("daybloom", player)
 	Item.new("daybloom", player)
+
+	local leaderstats = player:FindFirstChild("leaderstats")
+	local Cash = leaderstats.Cash
+	Cash.Update:Fire(pd.Resources.Money)
 
 	game.ReplicatedStorage
 		:WaitForChild("Shared")
