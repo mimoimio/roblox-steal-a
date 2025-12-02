@@ -36,7 +36,7 @@ for i, config: ItemConfig in ipairs(ItemsConfig) do
 		if not funcstring then
 			warn("NO FUNCSTRING")
 		else
-			warn("\nfuncstring\n\n", funcstring)
+			-- warn("\nfuncstring\n\n", funcstring)
 		end
 
 		local func = loadstring(funcstring)()
@@ -52,7 +52,7 @@ for i, config: ItemConfig in ipairs(ItemsConfig) do
 		if not funcstring then
 			warn("NO FUNCSTRING")
 		else
-			warn("\nfuncstring\n\n", funcstring)
+			-- warn("\nfuncstring\n\n", funcstring)
 		end
 
 		local func = loadstring(funcstring)()
@@ -68,7 +68,7 @@ for i, config: ItemConfig in ipairs(ItemsConfig) do
 		if not funcstring then
 			warn("NO FUNCSTRING")
 		else
-			warn("\nfuncstring\n\n", funcstring)
+			-- warn("\nfuncstring\n\n", funcstring)
 		end
 
 		local func = loadstring(funcstring)()

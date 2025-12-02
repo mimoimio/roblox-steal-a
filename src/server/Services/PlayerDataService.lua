@@ -1,22 +1,17 @@
--- src/server/Services/PlayerDataService.luau (Corrected for ProfileStore API)
-
+local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
-local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- 1. Require necessary modules
 local ProfileStoreModule = require(game.ServerScriptService.Server.Services.ProfileStore) -- Adjust path if needed
 local sharedtypes = require(ReplicatedStorage.Shared.types)
 local DefaultPlayerDataConfig = require(ReplicatedStorage.Shared.Configs.DefaultPlayerData)
 local Mionum = require(ReplicatedStorage.Packages.Mionum)
 
--- Define types locally
 type Item = sharedtypes.Item
 type PlayerData = sharedtypes.PlayerData
 type ItemConfig = sharedtypes.ItemConfig
 type Profile = ProfileStoreModule.Profile<PlayerData> -- Typed Profile object
 
--- 2. Define the Profile Template
 local PROFILE_TEMPLATE: PlayerData = {
 	Resources = DefaultPlayerDataConfig.Resources,
 	Collector = DefaultPlayerDataConfig.Collector,
@@ -40,6 +35,13 @@ local Profiles: { [Player]: Profile } = {}
 -- Service module to return
 local PlayerDataService = {}
 
+-- create bindable events
+local ProfileCreated = Instance.new("BindableEvent")
+PlayerDataService.ProfileCreated = ProfileCreated.Event
+
+local ProfileSessionEnded = Instance.new("BindableEvent")
+PlayerDataService.ProfileSessionEnded = ProfileSessionEnded.Event
+
 --[[
 	Retrieves the currently active Profile for a player on this server.
 	Returns nil if the player's data isn't loaded or managed by this server.
@@ -59,9 +61,6 @@ function PlayerDataService:GetProfile(player: Player): Profile?
 	return nil
 end
 
--- [[ --- MODIFIED FUNCTIONS --- ]]
-
--- LoadPlayerData remains similar, but returns the profile's data table
 function PlayerDataService:LoadPlayerData(player: Player): PlayerData?
 	local profile = Profiles[player] -- Check if already loaded
 
@@ -307,11 +306,13 @@ function PlayerDataService:Wipe(player: Player)
 		:FireClient(player, PlayerDataService:GetProfile(player).Data)
 end
 
--- Connect Player events
-Players.PlayerAdded:Connect(OnPlayerAdded)
-Players.PlayerRemoving:Connect(OnPlayerRemoving)
-
--- Bind the shutdown function
-game:BindToClose(OnShutdown)
+function PlayerDataService.initialize()
+	PlayerDataService.initialized = true
+	-- Connect Player events
+	Players.PlayerAdded:Connect(OnPlayerAdded)
+	Players.PlayerRemoving:Connect(OnPlayerRemoving)
+	-- Bind the shutdown function
+	game:BindToClose(OnShutdown)
+end
 
 return PlayerDataService

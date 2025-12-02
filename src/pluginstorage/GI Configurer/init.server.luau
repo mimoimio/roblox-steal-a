@@ -89,6 +89,11 @@ local function generateRawConfigsSource(configs)
 			table.insert(lines, string.format("\t\tItemTip = [[%s]],", config.ItemTip))
 		end
 
+		-- FlashEffect
+		if config.FlashEffect and config.FlashEffect ~= "" then
+			table.insert(lines, string.format("\t\tFlashEffect = [[%s]],", config.FlashEffect))
+		end
+
 		table.insert(lines, "\t},")
 	end
 
@@ -187,7 +192,8 @@ local function refresh()
 		end);
 		(funcTextBox :: TextBox).Changed:Connect(function(property)
 			if property == "Text" then
-				config[effect.Value] = funcTextBox[property]
+				warn("Text Changed", effect.Value, funcTextBox.Text)
+				config[effect.Value] = funcTextBox.Text
 			end
 		end)
 		effect.Changed:Connect(function(value)
@@ -206,24 +212,6 @@ local function refresh()
 		effect.Value = config.Entry and "Entry" or config.Growth and "Growth" or "Removed"
 		funcTextBox.Text = config[effect.Value] or ""
 		local ctrl = Instance.new("BoolValue", model);
-		-- (funcTextBox :: TextBox).Changed:Connect(function(property)
-		-- 	warn(property, funcTextBox[property])
-		-- end);
-		-- (funcTextBox :: TextBox).InputBegan:Connect(function(io)
-		-- 	warn(io.KeyCode, ctrl.Value)
-		-- 	if io.KeyCode == Enum.KeyCode.LeftControl then
-		-- 		ctrl.Value = true
-		-- 	elseif io.KeyCode == Enum.KeyCode.Return then
-		-- 		(funcTextBox :: TextBox):ReleaseFocus()
-		-- 		warn(funcTextBox.Text)
-		-- 		config[effect.Value] = funcTextBox.Text
-		-- 	end
-		-- end);
-		-- (funcTextBox :: TextBox).InputEnded:Connect(function(io)
-		-- 	if io.KeyCode == Enum.KeyCode.LeftControl then
-		-- 		ctrl.Value = false
-		-- 	end
-		-- end);
 
 		(bb.Price :: TextBox).FocusLost:Connect(function(enterpressed)
 			if not enterpressed then

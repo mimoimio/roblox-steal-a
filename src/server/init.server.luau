@@ -24,8 +24,10 @@ ItemSlotsUpdate.Name = "ItemSlotsUpdate"
 local ServerTypes = require(script.ServerTypes)
 type Service = ServerTypes.Service
 local shared: { Services: { Service } } = ServerTypes
--- Initialization phase
 for _, service in shared.Services do
+	if service.initialized then
+		continue
+	end
 	if service.initialize then
 		local ok, err = pcall(service.initialize, service)
 		if not ok then

@@ -48,7 +48,6 @@ function EffectHelpers.withContext(item: any, player: Player, callback: (context
 		warn("⚠️ EffectHelpers: Failed to create context")
 		return
 	end
-	warn("item", item, callback)
 	callback(ctx)
 	ctx:notifyClient()
 end

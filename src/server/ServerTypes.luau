@@ -1,4 +1,5 @@
 local server = game.ServerScriptService.Server
+local PlayerDataService = require(script.Services.PlayerDataService)
 local SpecialEventsService = require(server.Services.SpecialEventsService)
 local GridService = require(server.Services.GridService)
 local PlayerService = require(server.Services.PlayerService)
@@ -15,6 +16,7 @@ local RewardService = require(server.Services.RewardService)
 local Clock = require(server.Services.Clock)
 shared = {
 	Services = {
+		PlayerDataService = PlayerDataService,
 		SpecialEventsService = SpecialEventsService,
 		GridService = GridService,
 		PlayerService = PlayerService,

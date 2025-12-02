@@ -5,11 +5,6 @@ type VariationConfig = sharedtypes.VariationConfig
 type TierConfig = sharedtypes.TierConfig
 type PlayerData = sharedtypes.PlayerData
 
---[[
-	Gold, Diamond, Galactic
-	Common, Rare, Epic, Legendary, Mythic
-]]
-
 local PlayerData = require(game.ServerScriptService.Server.Classes.PlayerData)
 local PlayerDataService = require(game.ServerScriptService.Server.Services.PlayerDataService)
 local ItemsConfig: { ItemConfig } = require(game.ReplicatedStorage.Shared.Configs.ItemsConfig)
