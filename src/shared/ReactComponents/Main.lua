@@ -412,6 +412,7 @@ local function Main(props)
 		Position = UDim2.new(0, 0, 0, 0),
 		ZIndex = 1,
 	}, {
+		
 		Settings = e(Music, {
 			MusicOpen = MusicOpen,
 			PlayerData = PlayerData,

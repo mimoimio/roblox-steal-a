@@ -360,6 +360,7 @@ local function Tycoon(props: TycoonProps)
 	local characterRef = useRef()
 	local isMountedRef = useRef(false)
 
+	local playerData: ItemSlots, setPlayerData = useState(PlayerDataService:GetProfile(props.Player))
 	local itemSlots: ItemSlots, setItemSlots = useState(props.ItemSlots)
 	local items: { Item }, setItems = useState(props.Items)
 	local growthFunctions: { [string]: () -> nil? }, setGrowthFunctions = useState({})
@@ -508,6 +509,20 @@ local function Tycoon(props: TycoonProps)
 		local SellItem: RemoteEvent = game.ReplicatedStorage.Shared.Events:WaitForChild("SellItem")
 		local connections = {
 			-- when ItemSlots.Changed is fired
+			playerSession.StateChanged:Connect(function(pathArray, newValue)
+				-- local current = self.Data
+				-- -- Navigate to the parent of the target value
+				-- for i = 1, #pathArray - 1 do
+				-- 	current = current[pathArray[i]]
+				-- 	if not current then
+				-- 		warn("Invalid path")
+				-- 		return
+				-- 	end
+				-- end
+				-- local key = pathArray[#pathArray]
+				local pd = PlayerDataService:GetProfile(props.Player).Data
+				setPlayerData(table.clone(pd))
+			end),
 			ISChanged = ItemSlots.Changed:Connect(function(IS: ItemSlots, player)
 				if player ~= props.Player then
 					return
@@ -585,7 +600,7 @@ local function Tycoon(props: TycoonProps)
 		placed[ItemUID] = slotNum
 		if ItemUID ~= "none" then
 			local item = pd and PlayerData.GetItemFromUID(pd, ItemUID)
-			-- check if item is actually there. If there is, it will be rendered later.
+			-- check if item is actually exist there. If there is, it will be rendered later.
 			-- if itemuid actually leads to no where (deleted, sold) then render empty
 			if item then
 				continue

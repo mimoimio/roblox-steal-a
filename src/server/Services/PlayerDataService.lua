@@ -3,15 +3,16 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ProfileStoreModule = require(game.ServerScriptService.Server.Services.ProfileStore) -- Adjust path if needed
+local PlayerSession = require(game.ServerScriptService.Server.Classes.PlayerSession) -- Adjust path if needed
 local sharedtypes = require(ReplicatedStorage.Shared.types)
 local DefaultPlayerDataConfig = require(ReplicatedStorage.Shared.Configs.DefaultPlayerData)
 local Mionum = require(ReplicatedStorage.Packages.Mionum)
+local Signal = require(game.ReplicatedStorage.Packages.Signal)
 
 type Item = sharedtypes.Item
 type PlayerData = sharedtypes.PlayerData
 type ItemConfig = sharedtypes.ItemConfig
 type Profile = ProfileStoreModule.Profile<PlayerData> -- Typed Profile object
-
 local PROFILE_TEMPLATE: PlayerData = {
 	Resources = DefaultPlayerDataConfig.Resources,
 	Collector = DefaultPlayerDataConfig.Collector,
@@ -36,16 +37,14 @@ local Profiles: { [Player]: Profile } = {}
 local PlayerDataService = {}
 
 -- create bindable events
-local ProfileCreated = Instance.new("BindableEvent")
-PlayerDataService.ProfileCreated = ProfileCreated.Event
+local ProfileCreated = Signal.new()
+PlayerDataService.ProfileCreated = ProfileCreated
 
-local ProfileSessionEnded = Instance.new("BindableEvent")
-PlayerDataService.ProfileSessionEnded = ProfileSessionEnded.Event
+local ProfileSessionEnded = Signal.new()
+PlayerDataService.ProfileSessionEnded = ProfileSessionEnded
 
---[[
-	Retrieves the currently active Profile for a player on this server.
-	Returns nil if the player's data isn't loaded or managed by this server.
-]]
+--[[ Retrieves the currently active Profile for a player on this server.
+	Returns nil if the player's data isn't loaded or managed by this server. ]]
 function PlayerDataService:GetProfile(player: Player): Profile?
 	local startTime = os.clock()
 	local timeout = 5 -- seconds
@@ -58,51 +57,8 @@ function PlayerDataService:GetProfile(player: Player): Profile?
 		task.wait(0.1)
 	until os.clock() - startTime > timeout
 
+	warn("Failed to get Profile")
 	return nil
-end
-
-function PlayerDataService:LoadPlayerData(player: Player): PlayerData?
-	local profile = Profiles[player] -- Check if already loaded
-
-	while not profile do
-		profile = Profiles[player] -- Check if already loaded
-		task.wait()
-	end
-
-	return profile.Data
-
-	-- -- If not loaded, attempt to start a session (this part is from the previous example)
-	-- local profileKey = tostring(player.UserId)
-	-- profile = PlayerProfileStore:StartSessionAsync(profileKey)
-	-- warn("profile", profile)
-	-- if profile then
-	-- 	-- ... (rest of the setup from OnPlayerAdded: AddUserId, Reconcile, Cleanup, ListenToRelease) ...
-	-- 	Profiles[player] = profile -- Add to cache
-	-- 	return profile.Data -- Return the data table
-	-- else
-	-- 	player:Kick("Failed to load your data. Please try rejoining.")
-	-- 	return nil
-	-- end
-end
-
--- SavePlayerData now just releases the profile, saving the cached data automatically
-function PlayerDataService:SavePlayerData(player: Player)
-	local profile = Profiles[player]
-	if profile then
-		-- Clean up runtime data *before* releasing
-		if profile.Data.Items then
-			for _, item: Item in profile.Data.Items do
-				item.Entry = nil
-				item.Removed = nil
-				item.Merged = nil
-			end
-		end
-		-- Release tells ProfileStore to save the profile.Data table
-		profile:EndSession()
-		warn(`SavePlayerData called: Releasing profile for {player.Name}`)
-	else
-		warn(`SavePlayerData called for {player.Name}, but no active profile found.`)
-	end
 end
 
 -- Function to handle when a player joins the game
@@ -176,18 +132,16 @@ local function OnPlayerAdded(player: Player)
 			cash.Value = Mionum.new(money):toString()
 		end)
 
-		-- Set up a function to run when the session ends
-		-- This replaces ListenToRelease from ProfileService
-		profile.OnSessionEnd:Connect(function()
-			Profiles[player] = nil -- Remove from cache
-			warn(`Profile session ended for {player.Name} ({player.UserId})`)
-			-- Kick the player to prevent data issues if the session ended unexpectedly
-			player:Kick("Your data session has ended. Please rejoin.")
-		end)
+		local playerSession = PlayerSession.new(profile, player)
 
-		-- Now you can access profile.Data table to read/write player data
-		-- Example: Let other services know data is ready
-		-- game.ServerStorage.PlayerDataLoaded:Fire(player, profile.Data)
+		profile.OnSessionEnd:Connect(function()
+			Profiles[player] = nil
+			warn(`Profile session ended for {player.Name} ({player.UserId})`)
+			player:Kick("Your data session has ended. Please rejoin.")
+			-- Kick the player to prevent data issues if the session ended unexpectedly
+			ProfileSessionEnded:Fire(player, profile)
+		end)
+		ProfileCreated:Fire(player, profile)
 	else
 		-- The profile couldn't be loaded
 		warn(`Critical error: Failed to load profile for {player.Name} ({player.UserId}). Kicking.`)

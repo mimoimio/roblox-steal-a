@@ -2,23 +2,13 @@ local sharedtypes = require(game.ReplicatedStorage.Shared.types)
 type Item = sharedtypes.Item
 export type PlayerData = sharedtypes.PlayerData
 type ItemConfig = sharedtypes.ItemConfig
-
 local PlayerDataService = require(game.ServerScriptService.Server.Services.PlayerDataService)
-local Alyanum = require(game.ReplicatedStorage.Packages.Alyanum)
-
 local ItemSlots = require(game.ServerScriptService.Server.Classes.ItemSlots)
 local PlayerSettings = require(game.ServerScriptService.Server.Classes.PlayerSettings)
-local ItemsConfig: { ItemConfig } = require(game.ReplicatedStorage.Shared.Configs.ItemsConfig)
--- local Item = require(game.ServerScriptService.Server.Classes.Item)
---   02:45:30.739  Requested module was required recursively  -  Server - Item:13 do module loader
 
-local PlayerData = {} :: {
-	Collections: { [Player]: PlayerData },
-	Owners: { [PlayerData]: Player },
-}
+local PlayerData = { Owners = {}, Collections = {} }
 PlayerData.__index = PlayerData
-PlayerData.Collections = {} :: { [Player]: PlayerData }
-PlayerData.Owners = {} :: { [PlayerData]: Player }
+
 local Changed = Instance.new("BindableEvent")
 PlayerData.Changed = Changed.Event
 
@@ -42,7 +32,6 @@ end)
 
 function PlayerData.new(player: Player): PlayerData?
 	local savedPD = PlayerDataService:LoadPlayerData(player) -- fetches saved pd or default. nil if DataStore error
-	warn("savedPD", savedPD)
 	if not savedPD then
 		return
 	end
@@ -50,8 +39,6 @@ function PlayerData.new(player: Player): PlayerData?
 	local self = setmetatable(savedPD, PlayerData)
 	self.ItemSlots = ItemSlots.new(self.ItemSlots, player)
 	self.PlayerSettings = PlayerSettings.new(player, self.PlayerSettings)
-
-	warn(self)
 
 	PlayerData.Owners[self] = player
 	PlayerData.Collections[player] = self

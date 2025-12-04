@@ -1,6 +1,6 @@
 [package]
 name = "mimoimio/mionum" # Change to your Wally username
-version = "1.0.1" # Start with your own version
+version = "1.0.0" # Start with your own version
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 description = "Mio's fork of Alyanum"

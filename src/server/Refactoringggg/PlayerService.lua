@@ -20,7 +20,6 @@ function PlayerService.initialize()
 		end
 		PlayerService.Collections[player] = pd
 	end)
-
 	game:GetService("Players").PlayerRemoving:Connect(function(player)
 		if not PlayerService.Collections[player] then
 			return

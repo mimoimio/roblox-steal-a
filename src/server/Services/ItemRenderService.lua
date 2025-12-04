@@ -7,6 +7,8 @@ local e = React.createElement
 local useEffect = React.useEffect
 local useState = React.useState
 local useRef = React.useRef
+local sharedtypes = require(game.ReplicatedStorage.Shared.types)
+type PlayerData = sharedtypes.PlayerData
 
 local Dummies = require(script.Parent.Dummies)
 local PlayerDataService = require(game.ServerScriptService.Server.Services.PlayerDataService)
@@ -16,7 +18,6 @@ local ICLookup = Dummies.ICLookup
 local PDDummy = Dummies.PlayerData
 local ProfileStore = require(game.ServerScriptService.Server.Services.ProfileStore)
 local ti = TweenInfo.new(1, Enum.EasingStyle.Circular, Enum.EasingDirection.InOut, -1, true)
-type PlayerData = PlayerData.PlayerData
 type Profile = ProfileStore.Profile<PlayerData>
 
 local ItemRenderService = {}
