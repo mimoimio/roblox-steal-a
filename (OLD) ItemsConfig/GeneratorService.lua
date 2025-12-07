@@ -122,7 +122,7 @@ local function OnProfileCreated(playerSession: PlayerSession)
 				and Plot.Collector.CollectDisplay:FindFirstChild("SurfaceGui")
 				and Plot.Collector.CollectDisplay.SurfaceGui:FindFirstChild("TextLabel")
 
-			local multiplierText = finalMultiplier > 1 and string.format(" (x%.1f)", finalMultiplier) or ""
+			local multiplierText = finalMultiplier > 1 and string.format(" (x%.2f)", finalMultiplier) or ""
 
 			if textlabel and textlabel:IsA("TextLabel") then
 				textlabel.Text = "Money: "
@@ -313,7 +313,8 @@ local function OnProfileCreated(playerSession: PlayerSession)
 		end
 	end)
 	local CleanupRenderThreads = function()
-		for i, thread:thread in threads
+		for i, thread: thread in threads do
+		end
 	end
 	GeneratorService.Collections = {
 		CleanUpPlot = CleanUpPlot,

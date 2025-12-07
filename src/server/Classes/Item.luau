@@ -5,7 +5,8 @@ type VariationConfig = sharedtypes.VariationConfig
 type TierConfig = sharedtypes.TierConfig
 type PlayerData = sharedtypes.PlayerData
 
-local PlayerData = require(game.ServerScriptService.Server.Classes.PlayerData)
+-- local PlayerData = require(game.ServerScriptService.Server.Classes.PlayerData)
+local PlayerData = require(game.ServerScriptService.Server.Classes.PlayerSession)
 local PlayerDataService = require(game.ServerScriptService.Server.Services.PlayerDataService)
 local ItemsConfig: { ItemConfig } = require(game.ReplicatedStorage.Shared.Configs.ItemsConfig)
 local VariationsConfig: { VariationConfig } = require(game.ReplicatedStorage.Shared.Configs.VariationsConfig)
@@ -47,18 +48,19 @@ end
 
 function Item:FireDeletedEvent()
 	local owner: Player = Item.Owners[self]
-	ItemDeleted:Fire(PlayerData.Collections[owner].Items, owner)
+	ItemDeleted:Fire(PlayerDataService:GetProfile(owner).Data.Items, owner)
 end
 function Item.FireCreatedEvent(self: Item, owner: Player)
 	owner = owner or Item.Owners[self]
-	ItemCreated:Fire(PlayerData.Collections[owner].Items, owner)
+	ItemCreated:Fire(PlayerDataService:GetProfile(owner).Data.Items, owner)
 end
 function Item:FireSoldEvent(player: Player)
-	ItemSold:Fire(PlayerData.Collections[player].Items, player)
+	ItemSold:Fire(PlayerDataService:GetProfile(player).Data.Items, player)
 end
 
 function Item.new(ItemId: string, Player: Player, VariationId: string?): Item?
-	if #PlayerData.Collections[Player].Items >= 24 then
+	local session = PlayerDataService:GetSession(Player)
+	if #session.Profile.Data.Items >= 24 then
 		ExceedingLimit:FireClient(Player)
 		return nil
 	end
@@ -80,12 +82,11 @@ function Item.new(ItemId: string, Player: Player, VariationId: string?): Item?
 	self.Merge = nil
 	self.Removed = nil
 	self.Variations = nil
-	table.insert(PlayerData.Collections[Player].Items, self)
-
-	ItemCreated:Fire(PlayerData.Collections[Player].Items, Player)
+	session:AddItem(self)
+	-- table.insert(PlayerData.Collections[Player].Items, self)
 
 	local ItemUpdated: RemoteEvent = game.ReplicatedStorage.Shared.Events.ItemUpdated
-	ItemUpdated:FireClient(Player, PlayerData.Collections[Player].Items)
+	ItemUpdated:FireClient(Player, session.Profile.Data.Items)
 
 	self:FireCreatedEvent(Player)
 

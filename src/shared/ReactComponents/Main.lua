@@ -306,12 +306,14 @@ local function Main(props)
 			--[[ ITEM SLOTS CHANGED EVENT ================================]]
 			itemslotschanged = ItemSlotsUpdate.OnClientEvent:Connect(function(ItemSlots: { [string]: string })
 				setPlayerData(function(prev: PlayerData)
+					warn("prev", prev)
 					if not prev then
 						return game.ReplicatedStorage.Shared.Events:WaitForChild("GetPlayerData"):InvokeServer()
 					end
 
 					local clone = table.clone(prev)
 					clone.ItemSlots = ItemSlots
+					warn("clone.ItemSlots", clone.ItemSlots)
 
 					return clone
 				end)
@@ -412,7 +414,7 @@ local function Main(props)
 		Position = UDim2.new(0, 0, 0, 0),
 		ZIndex = 1,
 	}, {
-		
+
 		Settings = e(Music, {
 			MusicOpen = MusicOpen,
 			PlayerData = PlayerData,

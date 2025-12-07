@@ -381,7 +381,7 @@ local function HUD(props)
 						Position = UDim2.new(0, 0, 0, 0),
 						BackgroundTransparency = 1,
 						TextStrokeTransparency = 0,
-						Text = string.format("(%.1f%%)", progress * 100),
+						Text = string.format("(%.2f%%)", progress * 100),
 						Font = "FredokaOne",
 						TextSize = 14,
 						TextColor3 = Color3.new(1, 1, 1),

@@ -13,20 +13,6 @@ SetPlayerSettings.OnServerEvent:Connect(function(player, ps: PlayerSettings)
 	PlayerSettings.Collections[player].MusicVolume = ps.MusicVolume
 end)
 
-local GetPlayerSettings = Instance.new("RemoteFunction", game.ReplicatedStorage.Shared.Events)
-GetPlayerSettings.Name = "GetPlayerSettings"
-GetPlayerSettings.OnServerInvoke = function(player)
-	if PlayerSettings.Collections[player] then
-		while not PlayerSettings.Collections[player] do
-			warn("waiting for the player", player, "'s settings")
-			task.wait()
-		end
-		return PlayerSettings.Collections[player]
-	else
-		warn("")
-	end
-end
-
 function PlayerSettings.new(player: Player, savedPlayerSettings: PlayerSettings): PlayerSettings
 	local self = setmetatable(savedPlayerSettings, PlayerSettings)
 

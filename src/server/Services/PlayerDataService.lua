@@ -11,6 +11,7 @@ local Signal = require(game.ReplicatedStorage.Packages.Signal)
 
 type Item = sharedtypes.Item
 type PlayerData = sharedtypes.PlayerData
+type PlayerSession = PlayerSession.PlayerSession
 type ItemConfig = sharedtypes.ItemConfig
 type Profile = ProfileStoreModule.Profile<PlayerData> -- Typed Profile object
 local PROFILE_TEMPLATE: PlayerData = {
@@ -35,6 +36,7 @@ local Profiles: { [Player]: Profile } = {}
 
 -- Service module to return
 local PlayerDataService = {}
+PlayerDataService.PlayerSessions = {}
 
 -- create bindable events
 local ProfileCreated = Signal.new()
@@ -53,6 +55,22 @@ function PlayerDataService:GetProfile(player: Player): Profile?
 		local profile = Profiles[player]
 		if profile then
 			return profile
+		end
+		task.wait(0.1)
+	until os.clock() - startTime > timeout
+
+	warn("Failed to get Profile")
+	return nil
+end
+
+function PlayerDataService:GetSession(player: Player): PlayerSession?
+	local startTime = os.clock()
+	local timeout = 5 -- seconds
+
+	repeat
+		local session = PlayerDataService.PlayerSessions[player]
+		if session then
+			return session
 		end
 		task.wait(0.1)
 	until os.clock() - startTime > timeout
@@ -133,15 +151,16 @@ local function OnPlayerAdded(player: Player)
 		end)
 
 		local playerSession = PlayerSession.new(profile, player)
+		PlayerDataService.PlayerSessions[player] = playerSession
 
 		profile.OnSessionEnd:Connect(function()
 			Profiles[player] = nil
 			warn(`Profile session ended for {player.Name} ({player.UserId})`)
 			player:Kick("Your data session has ended. Please rejoin.")
 			-- Kick the player to prevent data issues if the session ended unexpectedly
-			ProfileSessionEnded:Fire(player, profile)
+			ProfileSessionEnded:Fire(playerSession)
 		end)
-		ProfileCreated:Fire(player, profile)
+		ProfileCreated:Fire(playerSession)
 	else
 		-- The profile couldn't be loaded
 		warn(`Critical error: Failed to load profile for {player.Name} ({player.UserId}). Kicking.`)
@@ -201,12 +220,12 @@ function PlayerDataService:Wipe(player: Player)
 	if not prevdata.GameCompleted then
 		return
 	end
-	local newItems = {}
-	for i, item in DefaultPlayerDataConfig.Items do
-		local newitem = table.clone(item)
-		newitem.UID = tostring(tick())
-		table.insert(newItems, newitem)
-	end
+	-- local newItems = {}
+	-- for i, item in DefaultPlayerDataConfig.Items do
+	-- 	local newitem = table.clone(item)
+	-- 	newitem.UID = tostring(tick())
+	-- 	table.insert(newItems, newitem)
+	-- end
 
 	-- Handle RebirthBonus multiplier
 	local rebirthBonusValue = 0.05
@@ -233,25 +252,27 @@ function PlayerDataService:Wipe(player: Player)
 
 	for name, data in PlayerDataService:GetProfile(player).Data do
 		local replacementdata = defaultdata[name]
-		PlayerDataService:GetProfile(player).Data[name] = replacementdata
+		PlayerDataService:GetSession(player).Profile.Data[name] = replacementdata
 	end
 
 	-- Add/update RebirthBonus multiplier
 	MultiplierService.AddMultiplier(player, "RebirthBonus", rebirthBonusValue, -1, "Rebirth Bonus")
 	-- Add sourlcrystals
-	local pd = PlayerDataService:GetProfile(player).Data
+	local pd = PlayerDataService:GetSession(player).Profile.Data
 	pd.Resources.SoulCrystal = soulcrystal
 
-	TycoonService.RestartPlayer(player)
-	ItemRenderService.RestartPlayer(player)
-	local Item = require(game.ServerScriptService.Server.Classes.Item)
+	TycoonService.RestartPlayer(PlayerDataService:GetSession(player))
+	ItemRenderService.RestartPlayer(PlayerDataService:GetSession(player))
+	-- local Item = require(game.ServerScriptService.Server.Classes.Item)
 
-	Item.new("daybloom", player)
-	Item.new("daybloom", player)
+	-- Item.new("daybloom", player)
+	-- Item.new("daybloom", player)
 
 	local leaderstats = player:FindFirstChild("leaderstats")
 	local Cash = leaderstats.Cash
 	Cash.Update:Fire(pd.Resources.Money)
+
+	warn(PlayerDataService.PlayerSessions)
 
 	game.ReplicatedStorage
 		:WaitForChild("Shared")

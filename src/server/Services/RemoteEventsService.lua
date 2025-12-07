@@ -1,5 +1,4 @@
 local Item = require(game.ServerScriptService.Server.Classes.Item)
-local PlayerData = require(game.ServerScriptService.Server.Classes.PlayerData)
 local PlayerDataService = require(game.ServerScriptService.Server.Services.PlayerDataService)
 
 local RemoteEventsService = {}
@@ -9,6 +8,10 @@ CreateItem.Name = "CreateItem"
 
 local ItemUpdated = Instance.new("RemoteEvent", game.ReplicatedStorage.Shared.Events)
 ItemUpdated.Name = "ItemUpdated"
+
+local GetPlayerSettings = Instance.new("RemoteFunction", game.ReplicatedStorage.Shared.Events)
+GetPlayerSettings.Name = "GetPlayerSettings"
+GetPlayerSettings.OnServerInvoke = function(player) end
 
 local GetItems = Instance.new("RemoteFunction", game.ReplicatedStorage.Shared.Events)
 GetItems.Name = "GetItems"
@@ -76,7 +79,7 @@ function RemoteEventsService.initialize()
 			warn("no item by", ItemId)
 			return
 		end
-		local pd = PlayerDataService:GetProfile(player).Data
+		local pd = PlayerDataService:GetSession(player).Profile.Data
 		if not pd then
 			warn("no player")
 			return
@@ -84,7 +87,7 @@ function RemoteEventsService.initialize()
 
 		local money = pd.Resources.Money
 		money -= itemconfig.Price
-		if money <= 0 then
+		if money < 0 then
 			return
 		end
 		if not Item.new(itemconfig.ItemId, player) then
@@ -102,11 +105,13 @@ function RemoteEventsService.initialize()
 		local MoneyDisplayUpdate: UnreliableRemoteEvent =
 			game.ReplicatedStorage.Shared.Events:WaitForChild("MoneyDisplayUpdate")
 		MoneyDisplayUpdate:FireClient(player, pd.Resources.Money, pd.Resources.Rate)
+		warn("pd", pd)
 	end)
 
 	RemoteEventsService.isInitialized = true
 	GetPlayerData.OnServerInvoke = function(player)
 		local profile = PlayerDataService:GetProfile(player)
+		-- warn("Got Player Data", profile.Data)
 		return profile and profile.Data
 	end
 

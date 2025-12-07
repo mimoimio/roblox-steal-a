@@ -10,7 +10,7 @@ local CLOSED_POS = UDim2.new(0.5, 0, -0.5, 0)
 local Events = game.ReplicatedStorage.Shared.Events
 local GetTotalItemCount: RemoteFunction = Events:WaitForChild("GetTotalItemCount")
 local GetOwnedItems: RemoteFunction = Events:WaitForChild("GetOwnedItems")
-local OwnedItemsUpdated: RemoteEvent = Events:WaitForChild("OwnedItemsUpdated",5)
+local OwnedItemsUpdated: RemoteEvent = Events:WaitForChild("OwnedItemsUpdated", 5)
 
 local function Settings(props: {
 	SettingsOpen: boolean,
@@ -160,7 +160,7 @@ local function Settings(props: {
 				Size = UDim2.new(1, 0, 0, 20),
 				Position = UDim2.new(0, 0, 0, 60),
 				BackgroundTransparency = 1,
-				Text = string.format("(%.1f%%)", progress * 100),
+				Text = string.format("(%.2f%%)", progress * 100),
 				Font = "FredokaOne",
 				TextSize = 14,
 				TextColor3 = Color3.new(1, 1, 1),

@@ -13,7 +13,7 @@ ItemSpawnService.Collections = {}
 local ProximityPromptService = game:GetService("ProximityPromptService")
 
 local Alyanum = require(game.ReplicatedStorage.Packages.Alyanum)
-local Item = require(game.ServerScriptService.Server.Classes.Item)
+-- local Item = require(game.ServerScriptService.Server.Classes.Item)
 local PlayerData = require(game.ServerScriptService.Server.Classes.PlayerData)
 local GridService = require(script.Parent.GridService)
 local FormatItemLabelText = require(game.ReplicatedStorage.Shared.Utils.Format).FormatItemLabelText

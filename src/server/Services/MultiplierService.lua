@@ -7,6 +7,8 @@ type Multiplier = sharedtypes.Multiplier
 local MultiplierService = {}
 MultiplierService.isInitialized = false
 
+-- TODO floating point to 2 decimals, and make percentage multipliers logic not confusing
+
 --[[
 	Adds or updates a multiplier for a player.
 	@param player Player - The player to add multiplier to

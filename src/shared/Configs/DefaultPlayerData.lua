@@ -22,7 +22,7 @@ local FIRSTUNLOCKEDITEMID = require(game.ServerScriptService.GeneratedItemConfig
 
 function DefaultPlayerData.Get()
 	local DEFAULT_RESOURCES = {
-		Money = 220,
+		Money = 10,
 		Rate = 1,
 		SoulCrystal = 0,
 	}

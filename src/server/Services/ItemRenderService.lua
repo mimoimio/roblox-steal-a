@@ -1,3 +1,5 @@
+local PlayerSession = require(game.ServerScriptService.Server.Classes.PlayerSession)
+type PlayerSession = PlayerSession.PlayerSession
 local BadgeService = game:GetService("BadgeService")
 local TweenService = game:GetService("TweenService")
 local Alyanum = require(game.ReplicatedStorage.Packages.Alyanum)
@@ -12,7 +14,6 @@ type PlayerData = sharedtypes.PlayerData
 
 local Dummies = require(script.Parent.Dummies)
 local PlayerDataService = require(game.ServerScriptService.Server.Services.PlayerDataService)
-local PlayerData = require(game.ServerScriptService.Server.Classes.PlayerData)
 local ICDummies = Dummies.ItemConfigs
 local ICLookup = Dummies.ICLookup
 local PDDummy = Dummies.PlayerData
@@ -214,6 +215,7 @@ local function ItemRenderer(props: {
 	Player: Player,
 	Plot: Model,
 })
+	local version, setVersion = useState(0)
 	local profile = PlayerDataService:GetProfile(props.Player)
 	if not profile then
 		return
@@ -247,10 +249,13 @@ local function ItemRenderer(props: {
 	local function BuyButton(ItemId: string): boolean
 		local success = false
 		local total = profile.Data.Resources.Money - ICDummies[ItemId].Price
-		local pd = PlayerData.Collections[props.Player]
+		local session = PlayerDataService:GetSession(props.Player)
 		if total >= 0 then
 			profile.Data.Resources.Money = total
-			pd:FireBEChanged()
+			setVersion(function(prev)
+				return prev + 1
+			end)
+			session:FireChangedEvent()
 			profile.Data.OwnedItems[ItemId] = true
 			-- Remove from renderedUnownedSet so a new one can be added
 			renderedUnownedSet.current[ItemId] = nil
@@ -270,12 +275,6 @@ local function ItemRenderer(props: {
 
 	local unownedCount = 0
 	local ItemSlots = {}
-	local PlayerItemSlots = require(script.Parent.Parent.Classes.ItemSlots).Collections[props.Player]
-	while not PlayerItemSlots do
-		PlayerItemSlots = require(script.Parent.Parent.Classes.ItemSlots).Collections[props.Player]
-		task.wait()
-		warn("WAITING FOR ITEMSLOTS")
-	end
 
 	useEffect(function()
 		local profile = PlayerDataService:GetProfile(props.Player)
@@ -463,7 +462,7 @@ local function ItemRenderer(props: {
 			PlayerDataService:GetProfile(props.Player).Data.ItemSlots[slot] = nil
 		end
 	end
-	PlayerItemSlots.FireChangedEvent(PlayerDataService:GetProfile(props.Player).Data.ItemSlots)
+	-- PlayerItemSlots.FireChangedEvent(PlayerDataService:GetProfile(props.Player).Data.ItemSlots)
 
 	local OwnedItemsUpdated: RemoteEvent = game.ReplicatedStorage.Shared.Events:FindFirstChild("OwnedItemsUpdated")
 
@@ -491,9 +490,10 @@ local function ItemRendererApp(props)
 	-- Once Mounted
 	useEffect(function()
 		local playerSet: { [Player]: boolean } = {}
-		local conn
+		local conns = {}
 
-		local function createRenderer(player: Player)
+		local function createRenderer(playerSession: PlayerSession)
+			local player = playerSession.Player
 			if playerSet[player] then
 				return
 			end
@@ -505,14 +505,18 @@ local function ItemRendererApp(props)
 				-- Set up character respawn
 				local cSet = function()
 					local char = player.Character or player.CharacterAdded:Wait()
-					conn = player.CharacterAdded:Connect(function(cmodel: Model)
-						warn("ADDED", cmodel)
+					conns[player.Name .. "CharAdded"] = player.CharacterAdded:Connect(function(cmodel: Model)
 						setRenderers(function(prev)
 							local clone = table.clone(prev)
 							clone[player].Character = cmodel
 							return clone
 						end)
 						cmodel:PivotTo(Plot.PrimaryPart:GetPivot() + Vector3.new(0, 10, 0))
+					end)
+					conns[player.Name .. "CharRemoved"] = player.CharacterRemoving:Connect(function(cmodel: Model)
+						pcall(function()
+							-- player:LoadCharacter()
+						end)
 					end)
 					setRenderers(function(prev)
 						local clone = table.clone(prev)
@@ -522,7 +526,9 @@ local function ItemRendererApp(props)
 					char:PivotTo(Plot.PrimaryPart:GetPivot() + Vector3.new(0, 10, 0))
 				end
 				task.spawn(cSet)
-
+				pcall(function()
+					-- player:LoadCharacter()
+				end)
 				newRenderers[player] = {
 					Player = player,
 					Plot = Plot,
@@ -531,7 +537,8 @@ local function ItemRendererApp(props)
 			end)
 		end
 
-		local function cleanupRenderer(player: Player)
+		local function cleanupRenderer(playerSession: PlayerSession)
+			local player = playerSession.Player
 			setRenderers(function(prev)
 				local newRenderers = table.clone(prev)
 				if newRenderers[player] then
@@ -557,6 +564,14 @@ local function ItemRendererApp(props)
 								rendererFolder:Destroy()
 							end
 						end
+						local charadded = conns[player.Name .. "CharAdded"]
+						local charremoving = conns[player.Name .. "CharRemoved"]
+						if charadded then
+							charadded:Disconnect()
+						end
+						if charremoving then
+							charremoving:Disconnect()
+						end
 					end)
 
 					newRenderers[player] = nil
@@ -566,10 +581,11 @@ local function ItemRendererApp(props)
 			playerSet[player] = false
 		end
 
-		function ItemRenderService.RestartPlayer(player: Player)
+		function ItemRenderService.RestartPlayer(playerSession: PlayerSession)
 			task.spawn(function()
 				-- Don't wait for cleanup to finish, let it happen in background
-				cleanupRenderer(player)
+				local player = playerSession.Player
+				cleanupRenderer(playerSession)
 
 				-- Start creating new renderer immediately
 				task.wait(0.1) -- Small delay to let first batch of cleanup happen
@@ -578,6 +594,7 @@ local function ItemRendererApp(props)
 					local newRenderers = prev and table.clone(prev) or {}
 					local Plot = PlotService.GetPlot(player)
 					newRenderers[player] = {
+						PlayerSession = playerSession,
 						Player = player,
 						Plot = Plot,
 					}
@@ -590,20 +607,23 @@ local function ItemRendererApp(props)
 		end
 
 		-- on player added and removed
-		local pAddedCon = game.Players.PlayerAdded:Connect(createRenderer)
-		local pRemovedCon = game.Players.PlayerRemoving:Connect(cleanupRenderer)
+		local pAddedCon = PlayerDataService.ProfileCreated:Connect(createRenderer)
+		local pRemovedCon = PlayerDataService.ProfileSessionEnded:Connect(cleanupRenderer)
 
 		-- iterate Players in case player joined before the connection
 		for i, Player: Player in game.Players:GetPlayers() do
 			if playerSet[Player] then
 				continue
 			end
-			createRenderer(Player)
+			local session = PlayerDataService:GetSession(Player)
+			createRenderer(session)
 		end
 
 		return function()
-			if conn then
-				conn:Disconnect()
+			if conns then
+				for i, conn in conns do
+					conn:Disconnect()
+				end
 			end
 			if pAddedCon then
 				pAddedCon:Disconnect()
@@ -633,10 +653,23 @@ local function ItemRendererApp(props)
 	}, children)
 end
 
-function ItemRenderService.initialize()
-	local rootfolder = Instance.new("Folder", workspace)
-	rootfolder.Name = "ItemRenderServiceRoot"
+type Slot = string
+function ItemRenderService.GetPlayerItemSlotModels(player: Player, SlotNum: Slot)
+	local model
+	local start = tick()
+	repeat
+		local playerCollection = ItemRenderService.Collections[player]
+		warn(ItemRenderService, PlayerDataService:GetProfile(player))
+		if playerCollection then
+			model = ItemRenderService.Collections[player][SlotNum]
+		end
+		task.wait(0.3)
+		warn("Waiting for model", SlotNum, ("%.4f"):format(tick() - start))
+	until model
+	return model
+end
 
+function ItemRenderService.initialize()
 	local GetOwnedItems: RemoteFunction = game.ReplicatedStorage.Shared.Events:FindFirstChild("GetOwnedItems")
 	if not GetOwnedItems then
 		GetOwnedItems = Instance.new("RemoteFunction")
@@ -680,24 +713,13 @@ function ItemRenderService.initialize()
 		end
 		return sanitizedConfigs
 	end
+end
 
+function ItemRenderService.start()
+	local rootfolder = Instance.new("Folder", workspace)
+	rootfolder.Name = "ItemRenderServiceRoot"
 	local root = ReactRoblox.createRoot(rootfolder)
 	root:render(e("Folder", {}, e(ItemRendererApp)))
-end
-type Slot = string
-function ItemRenderService.GetPlayerItemSlotModels(player: Player, SlotNum: Slot)
-	local model
-	local start = tick()
-	repeat
-		local playerCollection = ItemRenderService.Collections[player]
-		warn(ItemRenderService, PlayerDataService:GetProfile(player))
-		if playerCollection then
-			model = ItemRenderService.Collections[player][SlotNum]
-		end
-		task.wait(0.3)
-		warn("Waiting for model", SlotNum, ("%.4f"):format(tick() - start))
-	until model
-	return model
 end
 
 return ItemRenderService

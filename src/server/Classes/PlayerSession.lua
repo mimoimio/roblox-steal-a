@@ -2,48 +2,52 @@ local Signal = require(game.ReplicatedStorage.Packages.Signal)
 local ProfileStore = require(game.ServerScriptService.Server.Services.ProfileStore)
 local sharedtypes = require(game.ReplicatedStorage.Shared.types)
 
-type PlayerData = sharedtypes.PlayerData
+type Item = sharedtypes.Item
 type Profile = ProfileStore.Profile<PlayerData>
-type Signal = Signal.Signal
 export type PlayerSession = {
 	Player: Player,
 	Profile: Profile,
-	Data: PlayerData,
-	StateChanged: Signal,
-	MoneyChanged: Signal,
-	InventoryChanged: Signal,
+	StateChanged: Signal.Signal,
+	AddItem: (self: PlayerSession, item: Item) -> boolean,
+	GetItem: (self: PlayerSession, UID: string) -> Item,
+	SetItemSlot: (self: PlayerSession, slot: string, UID: string) -> boolean,
+	SellItem: (self: PlayerSession, UID: string) -> boolean,
+	SellItemBulk: (self: PlayerSession, { string }) -> nil,
 }
 
-local PlayerSession = {}
+local PlayerSession: PlayerSession = {}
 PlayerSession.__index = PlayerSession
 
-function PlayerSession.new(profile: Profile, player: Player)
-	local self = setmetatable({}, PlayerSession)
+--[[ CONSTRUCTOR ]]
+function PlayerSession.new(profile: Profile, player)
+	local self: PlayerSession = setmetatable({}, PlayerSession)
 	self.Player = player
 	self.Profile = profile
-	self.OriginalData = profile.Data
-	self.Data = table.clone(profile.Data) -- this contains itempointer
-	self.Items = self.Data.Items
-	self.ItemSlots = self.Data.ItemSlots
 
-	self.Data.ItemPointer = {}
-	self:UpdateItemPointer()
+	self.ItemPointer = {}
+	self:_UpdateItemPointer() -- Internal call
 
 	self.StateChanged = Signal.new()
-
-	return self
+	profile.OnSessionEnd:Connect(function() end)
+	return self :: PlayerSession
 end
 
-function PlayerSession:UpdateItemPointer()
-	self.Data.ItemPointer = {}
-	for i, item in ipairs(self.Items) do
-		self.Data.ItemPointer[item.UID] = i
+-------------------------------------------------------------------------------
+-- INTERNAL HELPERS (Private)
+-- These start with "_" and should NOT be called by other scripts.
+-------------------------------------------------------------------------------
+
+-- 1. Pointer Maintenance
+function PlayerSession:_UpdateItemPointer()
+	table.clear(self.ItemPointer) -- Optimized clear
+	for i, item in ipairs(self.Profile.Data.Items) do
+		self.ItemPointer[item.UID] = i
 	end
 end
 
-function PlayerSession:Set(pathArray, newValue)
-	local current = self.Data
-	-- Navigate to the parent of the target value
+-- 2. Low Level Data Set (Dangerous if exposed)
+function PlayerSession:_Set(pathArray, newValue)
+	local current = self.Profile.Data
 	for i = 1, #pathArray - 1 do
 		current = current[pathArray[i]]
 		if not current then
@@ -51,98 +55,147 @@ function PlayerSession:Set(pathArray, newValue)
 			return
 		end
 	end
+	current[pathArray[#pathArray]] = newValue
+end
+
+-- 3. Low Level Data Remove (Dangerous if exposed)
+function PlayerSession:_Remove(pathArray)
+	local current = self.Profile.Data
+	for i = 1, #pathArray - 1 do
+		current = current[pathArray[i]]
+		if not current then
+			warn("Invalid path")
+			return
+		end
+	end
+
 	local key = pathArray[#pathArray]
-	current[key] = newValue
-end
-
-function PlayerSession:Remove(pathArray)
-	local current = self.Data
-	-- Navigate to the parent of the target value
-	for i = 1, #pathArray - 1 do
-		current = current[pathArray[i]]
-		if not current then
-			warn("Invalid path")
-			return
-		end
-	end
-	local parent = current
-	local index = pathArray[#pathArray]
-	if type(index) == "number" then
-		table.remove(parent, index)
+	if type(key) == "number" then
+		table.remove(current, key)
 	else
-		parent[index] = nil
+		current[key] = nil
 	end
 end
 
--- Itemslots manipulation
---[[ external use ]]
-function PlayerSession:SetItemSlotEmpty(slotnum)
-	local pathArray = { "ItemSlots", slotnum }
-	self:Set(pathArray, "none")
-	self.StateChanged:Fire()
-end
---[[ external use ]]
-function PlayerSession:SetItemSlot(slotnum, uid)
-	local pathArray = { "ItemSlots", slotnum }
-	self:Set(pathArray, uid)
+-------------------------------------------------------------------------------
+-- PUBLIC API (Exposed)
+-- These are safe to use by your Game Services and UI.
+-------------------------------------------------------------------------------
+
+--[[ Inventory Management ]]
+
+function PlayerSession:FireChangedEvent()
 	self.StateChanged:Fire()
 end
 
---[[ Item manipulations ]]
-
---[[ for internal uses only. No event firing ]]
 function PlayerSession:AddItem(item: { any })
-	table.insert(self.Items, item)
-	self:UpdateItemPointer()
+	-- Public: Other scripts (Quests, Shop) need to give items.
+	table.insert(self.Profile.Data.Items, item)
+	self:_UpdateItemPointer()
+	self.StateChanged:Fire()
 end
-function PlayerSession:RemoveItem(UID: string)
-	local index = self.Data.ItemPointer[UID]
-	for slotnum, uid in self.ItemSlots do
-		if self.Items[index].UID == uid then
-			self.ItemSlots[slotnum] = "none"
+
+function PlayerSession:GetItem(UID: string)
+	-- Public: UI needs to read item details
+	local index = self.ItemPointer[UID]
+	return index and self.Profile.Data.Items[index] or nil
+end
+
+function PlayerSession:SetItemSlot(targetSlotNum: string, targetUid: string?)
+	-- iterate to clear all slots from that item
+	for currentSlotNum, currentUid in self.Profile.Data.ItemSlots do
+		if currentUid == targetUid then
+			self:_Set({ "ItemSlots", currentSlotNum }, "none")
+		end
+		if currentSlotNum == targetSlotNum then
+			self:_Set({ "ItemSlots", targetSlotNum }, targetUid)
 		end
 	end
-	self:Remove({ "Items", index })
-	self:UpdateItemPointer()
+	self.StateChanged:Fire()
 end
-function PlayerSession:SetItemAttribute(UID: string, attr: string, value: any)
-	local index = self.Data.ItemPointer[UID]
-	self.Items[index][attr] = value
-end
---[[ external uses. Fires events]]
+
+--[[ Economy / Actions ]]
+
 function PlayerSession:SellItem(UID: string)
-	local index = self.Data.ItemPointer[UID]
-	local item = self.Data.Items[index]
-
-	local itemConfig: ItemConfig = ItemsConfig[item.ItemId]
-	local removed = itemConfig and type(itemConfig.Removed) == "function" and itemConfig.Removed or nil
-
-	if removed then
-		removed(item, self.Player)
+	local ItemsConfig = require(game.ReplicatedStorage.Shared.Configs.ItemsConfig) -- Assuming this exists
+	local index = self.ItemPointer[UID]
+	local item = self.Profile.Data.Items[index]
+	if not item then
+		return
 	end
 
-	self:RemoveItem(item.UID)
-	self.Data.Resources.Money += math.floor(self.Price / 2)
-	self.StateChanged:Fire()
-	-- FireSoldEvent(item, player)
-end
-function PlayerSession:SellItemBulk(UIDs: { string })
-	for i, UID in UIDs do
-		local index = self.Data.ItemPointer[UID]
-		local item = self.Data.Items[index]
+	-- 1. Run Removal Logic (Callbacks)
+	local itemConfig = ItemsConfig[item.ItemId]
+	-- if itemConfig and itemConfig.Removed then
+	-- itemConfig.Removed(item, self.Player)
+	-- end
 
-		local itemConfig = ItemsConfig[item.ItemId]
-		local removed = itemConfig and type(itemConfig.Removed) == "function" and itemConfig.Removed or nil
-
-		if removed then
-			removed(item, self.Player)
+	-- 2. Unequip if currently equipped
+	for slotnum, slotUid in pairs(self.Profile.Data.ItemSlots) do
+		if slotUid == UID then
+			self:_Set({ "ItemSlots", slotnum }, "none")
 		end
-
-		self:RemoveItem(item.UID)
-		self.Data.Resources.Money += math.floor(self.Price / 2)
 	end
+
+	-- 3. Add Money
+	-- Note: You had "self.Price" in your code, but price is usually in Config, not the instance
+	local price = itemConfig and itemConfig.Price or 0
+	self.Profile.Data.Resources.Money += math.floor(price / 2)
+
+	-- 4. Remove Data
+	self:_Remove({ "Items", index })
+	self:_UpdateItemPointer()
+
 	self.StateChanged:Fire()
-	-- Item.FireSoldBulkEvent(item, player)
 end
 
-return PlayerSession
+function PlayerSession:SellItemBulk(UIDs: { string })
+	local ItemsConfig = require(game.ReplicatedStorage.Shared.Configs.ItemsConfig) -- Assuming this exists
+	-- Optimization: Don't call SellItem repeatedly, or you rebuild the pointer
+	-- and fire StateChanged 50 times for 50 items. Do it in a batch.
+
+	local totalMoney = 0
+
+	-- We need to sort UIDs by index descending so removing them doesn't shift indices of items we haven't processed yet
+	-- However, since we use a Pointer map, it's safer to just mark for deletion or use a while loop.
+	-- Easiest strategy:
+
+	local itemsSold = false
+
+	for _, UID in ipairs(UIDs) do
+		local index = self.ItemPointer[UID]
+		local item = self.Profile.Data.Items[index]
+		if item then
+			itemsSold = true
+
+			-- Logic (Unequip/Callbacks)
+			local itemConfig = ItemsConfig[item.ItemId]
+			-- if itemConfig and itemConfig.Removed then
+			-- 	itemConfig.Removed(item, self.Player)
+			-- end
+
+			for slotnum, slotUid in pairs(self.Profile.Data.ItemSlots) do
+				if slotUid == UID then
+					self:_Set({ "ItemSlots", slotnum }, "none")
+				end
+			end
+
+			local price = itemConfig and itemConfig.Price or 0
+			totalMoney += math.floor(price / 2)
+
+			-- Remove the item from data, but DON'T update pointer yet
+			self:_Remove({ "Items", index })
+
+			-- CRITICAL: Because we removed an index, the pointer is now broken for subsequent items in this loop.
+			-- We must update the pointer immediately or handle removal differently.
+			self:_UpdateItemPointer()
+		end
+	end
+
+	if itemsSold then
+		self.Profile.Data.Resources.Money += totalMoney
+		self.StateChanged:Fire()
+	end
+end
+
+return PlayerSession :: PlayerSession
